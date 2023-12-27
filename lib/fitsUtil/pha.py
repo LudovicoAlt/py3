@@ -12,14 +12,14 @@ PHA files consist of 4 extensions (0-3).
 
 Dependencies: 
 numpy
-pyfits
+astropy.io.fits
 
 '''
 
 import os
 import datetime
 
-import pyfits as pf
+import astropy.io.fits as pf
 import numpy as np
 
 __version__ = 1.0
@@ -63,7 +63,7 @@ class PHA:
         # need just the filename - this is for the keyword FILENAME in 
         # extensions 0 & 1
         self.filename = fileStem
-        self.hdrFileName = str(os.path.split(self.filename)[-1]) # pyfits will not write the file without the extra str()
+        self.hdrFileName = str(os.path.split(self.filename)[-1]) # astropy.io.fits will not write the file without the extra str()
         
         # Energy Edges (EBOUNDS)
         self.eMin = edges[0]

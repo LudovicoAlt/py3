@@ -34,7 +34,7 @@ reScaleAxes = boolean(default=True)
 
 def doCheckVersions(verbose=True):
     ''' Get version numbers for python modules  '''
-    modules = ['matplotlib', 'pyfits', 'numpy', 'argparse', 'configobj']
+    modules = ['matplotlib', 'astropy', 'numpy', 'argparse', 'configobj']
     nullVal = 'unknown'
     try:
         import matplotlib
@@ -42,8 +42,8 @@ def doCheckVersions(verbose=True):
     except:
         mplVer = nullVal
     try:
-        import pyfits
-        pyfVer = pyfits.__version__
+        import astropy
+        pyfVer = astropy.__version__
     except:
         pyfVer = nullVal
     try:
@@ -160,11 +160,11 @@ def doCheckDeps():
         importError = True
         missingModules.append('matplotlib')
     try: 
-        import pyfits
+        import astropy
     except ImportError:
-        print("*** Pyfits not found - cannot continue without this module")
+        print("*** astropy not found - cannot continue without this module")
         importError = True
-        missingModules.append('pyfits')
+        missingModules.append('astropy')
     try:
         import argparse
     except ImportError:
@@ -188,7 +188,7 @@ def doCheckDeps():
     if importError:
         print("\nMissing %i module(s):"%len(missingModules))
         for i in missingModules: 
-        	print("\t%s"%i)
+            print("\t%s"%i)
     else:
         print("Done - all required modules found")
     return

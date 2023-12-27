@@ -4,7 +4,7 @@ import os
 import datetime
 
 import numpy as np
-import pyfits as pf
+import astropy.io.fits as pf
 
 def calc_occ_steps(src_ra, src_dec, time, pos):
     '''    

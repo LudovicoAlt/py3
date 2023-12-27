@@ -12,7 +12,7 @@ PHAII files consist of 4 extensions (0-3).
 
 Dependencies: 
 numpy
-pyfits
+astropy.io.fits
 
 Gerard Fitzpatrick
 gerard.fitzpatrick@ucdconnect.ie
@@ -22,7 +22,7 @@ gerard.fitzpatrick@ucdconnect.ie
 import os
 import datetime
 
-import pyfits as pf
+import astropy.io.fits as pf
 import numpy as np
 
 __version__ = 1.0

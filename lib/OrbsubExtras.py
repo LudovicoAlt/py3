@@ -4,7 +4,7 @@ OrbsubExtras.py
 
 import wx
 import numpy as np
-import pyfits as pf
+import astropy.io.fits as pf
 import matplotlib
 
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas

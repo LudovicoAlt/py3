@@ -5,8 +5,8 @@ import platform
 import os
 
 import numpy as np
-import pyfits as pf
-
+import astropy.io.fits as pf
+ 
 from lib import fitsUtil
 import lib.util.util as util
 
