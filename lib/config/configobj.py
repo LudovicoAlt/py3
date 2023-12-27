@@ -16,8 +16,6 @@
 # http://lists.sourceforge.net/lists/listinfo/configobj-develop
 # Comments, suggestions and bug reports welcome.
 
-
-
 import os
 import re
 import sys
@@ -1454,6 +1452,7 @@ class ConfigObj(Section):
         
         # No encoding specified - so we need to check for UTF8/UTF16
         for BOM, (encoding, final_encoding) in list(BOMS.items()):
+            BOM = str(BOM)
             if not line.startswith(BOM):
                 continue
             else:
