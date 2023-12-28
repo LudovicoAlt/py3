@@ -335,7 +335,7 @@ class Pha_data:
         deltaT = -opts.tRange[0] + opts.tRange[1]
         # Loop over orbit offsets & extract data in each region.
         # The offsets are strings which are used to index the dictionary 
-        # region.ranges which contains the time ranges associated with each 
+        # _ region.ranges which contains the time ranges associated with each 
         # offset in MET. For the source interval the index is 'src'.
         # The data for each orbit offset is stored in dictionary data which 
         # is indexed by the same offset string as region.ranges

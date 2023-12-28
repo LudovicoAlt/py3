@@ -369,14 +369,14 @@ class OrbsubGUI(wx.Frame):
         
         # Add buttons to btnBox
         for i in self.btns:
-            self.btnBox.Add(i, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
+            self.btnBox.Add(i, 0, wx.RIGHT, 5)
         # Add toolbar & position controls to toolbarBox
         self.toolbarBox.Add(self.toolbar)
-        self.toolbarBox.Add(xposTxt, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        self.toolbarBox.Add(self.xposTxt, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        self.toolbarBox.Add(yposTxt, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        self.toolbarBox.Add(self.yposTxt, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        self.toolbarBox.Add(self.statusBar, 5, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
+        self.toolbarBox.Add(xposTxt, 0, wx.RIGHT, 5)
+        self.toolbarBox.Add(self.xposTxt, 0, wx.RIGHT, 5)
+        self.toolbarBox.Add(yposTxt, 0, wx.RIGHT, 5)
+        self.toolbarBox.Add(self.yposTxt, 0, wx.RIGHT, 5)
+        self.toolbarBox.Add(self.statusBar, 5, wx.ALL, 5)
 
         # Add toolbar & canvas to pltBox
         self.pltBox.Add(self.toolbarBox, 0, wx.LEFT | wx.EXPAND)

@@ -1,7 +1,7 @@
 import sys
 import wx
 
-class FltRangeValidator(wx.PyValidator):
+class FltRangeValidator(wx.Validator):
     """A float range validator for a TextCtrl"""
     def __init__(self, min_=-sys.maxsize, max_=sys.maxsize, negAllowed = False,
                  eLabel = "Invalid Value", required = True):
@@ -117,7 +117,7 @@ class FltRangeValidator(wx.PyValidator):
             event.Skip()
             return
 
-        if not wx.Validator_IsSilent():
+        if not wx.Validator.IsSilent():
             # Beep to warn about invalid input
             wx.Bell()
 
@@ -129,7 +129,7 @@ class FltRangeValidator(wx.PyValidator):
          """Overridden to skip data transfer"""
          return True 
      
-class IntRangeValidator(wx.PyValidator):
+class IntRangeValidator(wx.Validator):
     """An integer range validator for a TextCtrl"""
     def __init__(self, min_=0, max_=sys.maxsize, eLabel = "Invalid Value"):
         """Initialize the validator
@@ -155,6 +155,7 @@ class IntRangeValidator(wx.PyValidator):
         """
         txtCtrl = self.GetWindow()
         vals = txtCtrl.GetValue().split()
+        popIndices = []
         for i, val in enumerate(vals):
             isValid = False
             if val.isdigit():
@@ -198,14 +199,14 @@ class IntRangeValidator(wx.PyValidator):
 
                 val = int(val)
                 if val < self._min or val > self._max:
-                    if not wx.Validator_IsSilent():
+                    if not wx.Validator.IsSilent():
                         wx.Bell()
                     return
                 
             event.Skip()
             return
 
-        if not wx.Validator_IsSilent():
+        if not wx.Validator.IsSilent():
             # Beep to warn about invalid input
             wx.Bell()
 
@@ -217,7 +218,7 @@ class IntRangeValidator(wx.PyValidator):
          """Overridden to skip data transfer"""
          return True 
      
-class IntsRangeValidator(wx.PyValidator):
+class IntsRangeValidator(wx.Validator):
     """An integer list range validator for a TextCtrl"""
     def __init__(self, min_=0, max_=sys.maxsize, eLabel = "Invalid Value"):
         """Initialize the validator
@@ -297,7 +298,7 @@ class IntsRangeValidator(wx.PyValidator):
             event.Skip()
             return
 
-        if not wx.Validator_IsSilent():
+        if not wx.Validator.IsSilent():
             # Beep to warn about invalid input
             wx.Bell()
 

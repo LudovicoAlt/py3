@@ -109,7 +109,7 @@ class Downloader:
 		else: 
 			return
 
-		chdir(dataDirectory)
+		chdir(dataDirectoryx)
 
 		if self.pos:
 			posFiles = []

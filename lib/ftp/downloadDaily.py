@@ -8,7 +8,7 @@ Downloads CTIME/CSPEC/POSHIST Files
 
 import argparse
 import ftplib
-from ftplib import FTP
+from ftplib import FTP, FTP_TLS
 import sys
 
 def parseArgs():
@@ -35,14 +35,16 @@ class Data_date:
 		mt = date[2:4]
 		dy = date[4:6]
 		self.ftp_dir = 'fermi/data/gbm/daily/'+yr+'/'+mt+'/'+dy+'/' +'current'
+
 	def download_data(self, dets, cspec=False, ctime=False, poshist=False):
 		'''Login to FTP & Download Data'''
 		if not (cspec | ctime | poshist):
 			print("No arguments passed - returning ...")
 			return
 		print("Connecting ...")
-		ftp = FTP('legacy.gsfc.nasa.gov')
+		ftp = FTP_TLS('heasarc.gsfc.nasa.gov')   
 		ftp.login()
+		ftp.prot_p()
 		print("Connected")
 		try:
 			ftp.cwd(self.ftp_dir)
