@@ -403,15 +403,25 @@ class Pha_data:
         zeromask = None
         # For pre & pos regions, we first sum the counts and error, then 
         # get the average
+
+        bkg = 0 # TODO remove this it should define it for n==0 
+        
+
+        print("Data is given by : ", data)
+
+
         for j in ['pre','pos']:
+            
             n = 0
             for i in bak_offset:
+                
                 index = j + i                
                 if not data[index]:
                     continue                    
                 if n == 0:
                     zeromask = (np.average(data[index][1],1)==0)
                     bkg = data[index][1]
+                    print("Hello I am here", bkg)
                     bkgErr = data[index][3]**2
                 else:
                     zeromask = (zeromask == True) | (np.average(data[index][1],1)==0)

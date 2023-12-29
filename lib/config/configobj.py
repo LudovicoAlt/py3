@@ -2107,7 +2107,8 @@ class ConfigObj(Section):
         if outfile is not None:
             outfile.write(output)
         else:
-            h = open(self.filename, 'wb')
+            h = open(self.filename, 'w')
+            print(output)
             h.write(output)
             h.close()
 
