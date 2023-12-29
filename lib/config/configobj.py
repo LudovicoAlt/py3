@@ -1296,13 +1296,18 @@ class ConfigObj(Section):
             raise TypeError('infile must be a filename, file like object, or list of lines.')
         
         if infile:
+            
+            print("This is the infile (pre BOM):", infile)
+
             # don't do it for the empty ConfigObj
             infile = self._handle_bom(infile)
             # infile is now *always* a list
             #
             # Set the newlines attribute (first line ending it finds)
             # and strip trailing '\n' or '\r' from lines
+            print("This is the infile:", infile)
             for line in infile:
+                print("This is the line: ", line)
                 if (not line) or (line[-1] not in ('\r', '\n', '\r\n')):
                     continue
                 for end in ('\r\n', '\n', '\r'):
@@ -1452,7 +1457,8 @@ class ConfigObj(Section):
         
         # No encoding specified - so we need to check for UTF8/UTF16
         for BOM, (encoding, final_encoding) in list(BOMS.items()):
-            BOM = str(BOM)
+            # BOM = str(BOM) TODO might not need to be string ????
+            print(BOM)
             if not line.startswith(BOM):
                 continue
             else:
@@ -2108,7 +2114,6 @@ class ConfigObj(Section):
             outfile.write(output)
         else:
             h = open(self.filename, 'w')
-            print(output)
             h.write(output)
             h.close()
 

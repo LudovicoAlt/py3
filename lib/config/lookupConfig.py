@@ -7,7 +7,8 @@ These are lists.
 
 from os.path import join as osJoin
 
-from . import configobj
+#from . import configobj
+import configobj #import v5
 from lib import validate
 
 import lib.config as setup

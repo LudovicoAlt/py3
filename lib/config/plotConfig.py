@@ -1,6 +1,7 @@
 from os.path import join as osJoin
 
-from . import configobj
+#from . import configobj
+import configobj #import v5
 from lib import validate
 
 import lib.dep_ver_checker as setup

@@ -304,7 +304,12 @@ class Pha_data:
         Concatenate the data from several days into single arrays
         '''
         self.detector = 'null'
-        self.detector =  pha_files[0].split('/')[-1][10:12]
+        self.detector =  pha_files[0].replace('\\', '/').split('/')[-1][10:12]
+        #the double slash vs forward slash makes it work on windows 
+        #does nothing if there are no double slashes
+
+        print(self.detector, pha_files, pha_files[0].replace('\\', '/').split('/')[-1])
+
         for i in pha_files:
             t_start, t_end, t_exposure, counts,  eMin, eMax = util.read_pha(i)
             #self.pha_data=pha_data[4]
@@ -323,6 +328,7 @@ class Pha_data:
                 self.t_exposure = np.concatenate((self.t_exposure, 
                                                   t_exposure))
                 self.counts = np.concatenate((self.counts, counts))
+
     def bin_pha(self, regions, offset, opts):
         '''
         Bin up pha counts to desired binsize -> also keep original data
@@ -332,17 +338,20 @@ class Pha_data:
             resolution = 4.096
         elif nchan == 8:
             resolution = 1.024 # 0.256
-        deltaT = -opts.tRange[0] + opts.tRange[1]
+
+        # deltaT = -opts.tRange[0] + opts.tRange[1] never referenced?
         # Loop over orbit offsets & extract data in each region.
         # The offsets are strings which are used to index the dictionary 
         # _ region.ranges which contains the time ranges associated with each 
         # offset in MET. For the source interval the index is 'src'.
         # The data for each orbit offset is stored in dictionary data which 
         # is indexed by the same offset string as region.ranges
+
         data = {}
         self.binDataMes = ''
         self.binDataErrMes = ''
         self.binDataError = False
+
         for i in offset:
             if i != 'src':
                 loop = ['pre' + i, 'pos' + i]
@@ -378,8 +387,9 @@ class Pha_data:
                                         trange = region)
                 data.update({index: [x,y,exp,err]})
         self.data = data
-        
+        print("Here they define self.data :", data)
         return
+    
     def calc_background(self, offset):
         '''
         Take average of offset regions to determine the background.
@@ -405,7 +415,7 @@ class Pha_data:
         # get the average
 
         bkg = 0 # TODO remove this it should define it for n==0 
-        
+        print(self.binDataErrMes)
 
         print("Data is given by : ", data)
 

@@ -9,7 +9,8 @@ import os
 import sys
 import shutil
 
-from lib.config import configobj
+#from lib.config import configobj
+import configobj #essentially just installed v5
 from lib import validate
 
 
@@ -57,7 +58,8 @@ def doCheckVersions(verbose=True):
     except:
         argVer = nullVal
     try:
-        from lib.config import configobj
+        #from lib.config import configobj
+        import configobj
         cfgVer = configobj.__version__
     except:
         cfgVer = nullVal
