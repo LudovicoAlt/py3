@@ -125,7 +125,7 @@ class GUI_txtFrame(wx.Frame):
         curTime = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
         fileName = curTime.replace(' ', '_') + '_log.txt'
         dlg = wx.FileDialog(self, 'Choose a file', os.getcwd(), fileName, 
-                            '*.*', wx.SAVE | wx.OVERWRITE_PROMPT)
+                            '*.*', wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
         if dlg.ShowModal() == wx.ID_OK:
                 fop=open(dlg.GetPath(),'w')
                 fop.write(self.logBox.GetValue())
@@ -830,21 +830,25 @@ class OrbsubGUI(wx.Frame):
                 for line in self.pltLines[index][axis]:
                     try:
                         # for fill_between
-                        self.axes[axis].collections.remove(line)
+                        # TODO self.axes[axis].collections.remove(line)
+                        line.remove()
                     except ValueError: 
                         # for fill
                         for i in line:
-                            self.axes[axis].patches.remove(i)
+                            # TODO self.axes[axis].patches.remove(i)
+                            i.remove()
                 self.pltLines[index][axis] = []
         elif index == 'gti' or index == 'occ':
             for i in self.pltLines[index][0]:
                 # print 'removing gti/occ ', i
-                self.axes[0].patches.remove(i)
+                # TODO self.axes[0].patches.remove(i)
+                i.remove()
             self.pltLines[index][0] = []
         else:
             for axis in list(self.pltLines[index].keys()):
                 for line in self.pltLines[index][axis]:
-                    self.axes[axis].lines.remove(line)
+                    # TODO self.axes[axis].lines.remove(line)
+                    line.remove()
                 self.pltLines[index][axis] = []
     def popUpMenu(self,event):
         ''' When called, pop menu up at mouse location. '''
@@ -981,7 +985,7 @@ class OrbsubGUI(wx.Frame):
         ''' Save lookup file '''
         fileName = self.orbsub.opts.name + '_OSV_V00.lu'
         dlg = wx.FileDialog(self, "Save LU", os.getcwd(), fileName,
-                            "*.lu", wx.SAVE | wx.OVERWRITE_PROMPT)
+                            "*.lu", wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
         if dlg.ShowModal() == wx.ID_OK:
             fo = open(dlg.GetPath(), 'w')
             pickle.dump(self._LU, fo)
@@ -992,7 +996,7 @@ class OrbsubGUI(wx.Frame):
         fileName = self.orbsub.opts.name + '_OSV_V00.lu'
         if not noGUI:
             dlg = wx.FileDialog(self, "Load LU", os.getcwd(), fileName,
-                                "*.lu", wx.OPEN)
+                                "*.lu", wx.FD_OPEN)
             if dlg.ShowModal() == wx.ID_OK:
                 fo = open(dlg.GetPath(), 'r')
                 self._LU = pickle.load(fo)
@@ -1089,7 +1093,7 @@ class OrbsubGUI(wx.Frame):
         for i,j in zip(exts[otype], ['source', 'background']):
             name = defaultName.replace(".XX",".%s"%i) 
             dlg = wx.FileDialog(self, "Name for %s file" %j, os.getcwd(), name,
-                            "*.%s"%i, wx.SAVE | wx.OVERWRITE_PROMPT)
+                            "*.%s"%i, wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
             if dlg.ShowModal() == wx.ID_OK:
                 name = dlg.GetPath()
             else:

@@ -391,8 +391,6 @@ class Pha_data:
                     data.update({index: False})
                     self.binDataError = True
                     continue
-                
-                print("No issue rebinning")
 
                 x,y,exp,err = util.rebin_gbm(
                         np.column_stack((self.t_start[mask], self.t_end[mask])),
