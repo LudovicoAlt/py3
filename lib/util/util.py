@@ -210,7 +210,8 @@ def rebin_gbm(x, y, exp, err = [], resolution = [], trange = []):
     else:
         x_edges=np.column_stack((x-exp/2 ,x+exp/2 ))
         bin_edge = False
-    if trange == []:
+    
+    if len(trange) == 0: #instead of checking [] check if empty
         x1=np.arange(x[0],x[-1],resolution)
         #x1=np.arange(x[0,0],x[-1,1],resolution)
     else:
@@ -540,6 +541,13 @@ def read_pha(pha_file, gti = False, qualMask = True, tOffset = True,):
     if tOffset:
         if data[2].header.__contains__('TZERO4'):
             tzero = data[2].header['TZERO4']
+    
+    # print("Here is tzero4: ", tzero)
+    # print("Here is tstart without this tzero factor :", data[2].data.TIME[qual])
+    # TODO write tests to double check this util functions
+    # TODO double check what this TZERO4 stands for, it offsets way too much
+    tzero = 0
+
     pha_counts = data[2].data['COUNTS'][qual]
     t_start    = data[2].data.TIME[qual]  + tzero
     t_end      = data[2].data.ENDTIME[qual] + tzero

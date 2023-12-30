@@ -706,7 +706,8 @@ class OrbsubGUI(wx.Frame):
         set plot fore and background colours
         '''           
         for ax in self.axes:
-            ax.set_axis_bgcolor(self.pltCfg['background'])
+            # ax.set_axis_bgcolor(self.pltCfg['background']) deprecated
+            ax.set_facecolor(self.pltCfg['background'])
             plt.setp(list(ax.spines.values()), color = self.pltCfg['foreground'])
             ax.tick_params(axis='both', which='major', 
                             labelsize = self.pltCfg['fontsizeLabel'],

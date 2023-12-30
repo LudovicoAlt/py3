@@ -299,29 +299,37 @@ class Pha_data:
     '''
     Class for GBM PHA data
     '''
-    def __init__(self,pha_files):
+    def __init__(self, pha_files):
         '''
         Concatenate the data from several days into single arrays
         '''
         self.detector = 'null'
+        # the double slash vs forward slash makes it work on windows 
+        # does nothing if there are no double slashes
         self.detector =  pha_files[0].replace('\\', '/').split('/')[-1][10:12]
-        #the double slash vs forward slash makes it work on windows 
-        #does nothing if there are no double slashes
-
-        print(self.detector, pha_files, pha_files[0].replace('\\', '/').split('/')[-1])
 
         for i in pha_files:
             t_start, t_end, t_exposure, counts,  eMin, eMax = util.read_pha(i)
+            
+            # TODO clean up, quality is handled in read pha no ?
+            #print("This is the file: ", i, "\n")
+            #print(" with t_start ", t_start)
+            #print(" with t_end ", t_end)
+            #print(" with t_exposure ", t_exposure)
+
             #self.pha_data=pha_data[4]
             #qual = pha_data[2].data['QUALITY']
             #qual = (qual!=11)
+
             if i == pha_files[0]:
+                
                 self.t_start = t_start
                 self.t_end = t_end
                 self.t_exposure = t_exposure
                 self.counts = counts
                 self.eEdgeMin = eMin
                 self.eEdgeMax = eMax
+
             else:
                 self.t_start = np.concatenate((self.t_start, t_start))
                 self.t_end = np.concatenate((self.t_end, t_end))
@@ -334,12 +342,13 @@ class Pha_data:
         Bin up pha counts to desired binsize -> also keep original data
         '''
         nchan = self.eEdgeMin.size
+        
         if nchan == 128:
-            resolution = 4.096
+            resolution = 4.096 # seconds
         elif nchan == 8:
             resolution = 1.024 # 0.256
-
         # deltaT = -opts.tRange[0] + opts.tRange[1] never referenced?
+
         # Loop over orbit offsets & extract data in each region.
         # The offsets are strings which are used to index the dictionary 
         # _ region.ranges which contains the time ranges associated with each 
@@ -371,14 +380,20 @@ class Pha_data:
                 
                 #print "<> %s <>" %index
                 region = regions.ranges[index]
+                
                 mask = np.where((self.t_start >= region[0] ) & 
                                 (self.t_end <= region[1]))
+                
                 # print region, opts.tRange
+
                 if not mask[0].size:
                     self.binDataErrMes += "*** Detector: %s, No data found: times: %.3f-%.3f, index: %s\n" %(self.detector, region[0], region[1], index)
                     data.update({index: False})
                     self.binDataError = True
                     continue
+                
+                print("No issue rebinning")
+
                 x,y,exp,err = util.rebin_gbm(
                         np.column_stack((self.t_start[mask], self.t_end[mask])),
                                         self.counts[mask],
@@ -387,7 +402,7 @@ class Pha_data:
                                         trange = region)
                 data.update({index: [x,y,exp,err]})
         self.data = data
-        print("Here they define self.data :", data)
+        
         return
     
     def calc_background(self, offset):
@@ -414,24 +429,21 @@ class Pha_data:
         # For pre & pos regions, we first sum the counts and error, then 
         # get the average
 
-        bkg = 0 # TODO remove this it should define it for n==0 
-        print(self.binDataErrMes)
-
-        print("Data is given by : ", data)
-
-
         for j in ['pre','pos']:
             
+            #TODO I have a suspicion that Files are not actually being read, I should double check if 
+            #400 000 000 passes over an SAA? probably not
+            #does it actually read the files ??
+
             n = 0
             for i in bak_offset:
                 
-                index = j + i                
+                index = j + i              
                 if not data[index]:
                     continue                    
                 if n == 0:
                     zeromask = (np.average(data[index][1],1)==0)
                     bkg = data[index][1]
-                    print("Hello I am here", bkg)
                     bkgErr = data[index][3]**2
                 else:
                     zeromask = (zeromask == True) | (np.average(data[index][1],1)==0)

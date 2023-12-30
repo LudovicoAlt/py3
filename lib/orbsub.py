@@ -141,8 +141,7 @@ class OrbSub():
             #print det            
             #Read in data from each day & concatenate it into several arrays
             det_data = Pha_data(self.files.pha_files[det])
-            det_data.bin_pha(self.regions, self.opts.offset, 
-                                            self.opts)
+            det_data.bin_pha(self.regions, self.opts.offset, self.opts)
             if det_data.binDataError:
                 self.orbErrMes += det_data.binDataErrMes
                 isValid = False
