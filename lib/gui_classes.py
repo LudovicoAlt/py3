@@ -832,7 +832,7 @@ class OrbsubGUI(wx.Frame):
                         # for fill_between
                         # TODO self.axes[axis].collections.remove(line)
                         line.remove()
-                    except ValueError: 
+                    except TypeError: 
                         # for fill
                         for i in line:
                             # TODO self.axes[axis].patches.remove(i)
@@ -987,7 +987,7 @@ class OrbsubGUI(wx.Frame):
         dlg = wx.FileDialog(self, "Save LU", os.getcwd(), fileName,
                             "*.lu", wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
         if dlg.ShowModal() == wx.ID_OK:
-            fo = open(dlg.GetPath(), 'w')
+            fo = open(dlg.GetPath(), 'wb') # TODO check if all the open need binary r/w
             pickle.dump(self._LU, fo)
             fo.close()
         dlg.Destroy()
@@ -998,13 +998,13 @@ class OrbsubGUI(wx.Frame):
             dlg = wx.FileDialog(self, "Load LU", os.getcwd(), fileName,
                                 "*.lu", wx.FD_OPEN)
             if dlg.ShowModal() == wx.ID_OK:
-                fo = open(dlg.GetPath(), 'r')
+                fo = open(dlg.GetPath(), 'rb')
                 self._LU = pickle.load(fo)
                 fo.close()
             dlg.Destroy()    
         else:
             if os.path.isfile(fileName):
-                fo = open(fileName, 'r')
+                fo = open(fileName, 'rb')
                 self._LU = pickle.load(fo)
                 fo.close()
             else:
