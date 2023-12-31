@@ -107,7 +107,8 @@ class PlotAngles(GUI_plotFrame):
         ''' '''
         self.pltCfg = pltCfg
         for ax in self.axes:
-            ax.set_axis_bgcolor(self.pltCfg['background'])
+            # deprecated ax.set_axis_bgcolor(self.pltCfg['background'])
+            ax.set_facecolor(self.pltCfg['background'])
             plt.setp(list(ax.spines.values()), color = self.pltCfg['foreground'])
             ax.tick_params(axis='both', which='major', 
                             labelsize = self.pltCfg['fontsizeLabel'],
@@ -145,7 +146,8 @@ class PlotPointing(GUI_plotFrame):
         linestyles = ['--', '-.', '-',  ] 
         self.pltCfg = pltCfg
         for ax in self.axes:
-            ax.set_axis_bgcolor(self.pltCfg['background'])
+            # deprecated ax.set_axis_bgcolor(self.pltCfg['background'])
+            ax.set_facecolor(self.pltCfg['background'])
             plt.setp(list(ax.spines.values()), color = self.pltCfg['foreground'])
             ax.tick_params(axis='both', which='major', 
                             labelsize = self.pltCfg['fontsizeLabel'],
@@ -192,7 +194,8 @@ class BkgSubLC(GUI_plotFrame):
         ''' '''
         self.pltCfg = pltCfg        
         for ax in self.axes:
-            ax.set_axis_bgcolor(self.pltCfg['background'])
+            # deprecated ax.set_axis_bgcolor(self.pltCfg['background'])
+            ax.set_facecolor(self.pltCfg['background'])
             plt.setp(list(ax.spines.values()), color = self.pltCfg['foreground'])
             ax.tick_params(axis='both', which='major', 
                             labelsize = self.pltCfg['fontsizeLabel'],
