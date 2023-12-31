@@ -4,20 +4,16 @@
 setup script for OSV
 '''
 
-
 import os
 import sys
-import shutil
 
 import configobj #essentially just installed v5
 from lib import validate
-
 
 appName = 'osv'
 
 iniDir = os.path.expanduser('~/.gbmOSV')
 iniPath = os.path.join(iniDir, 'config.ini')
-
 
 cfgSpec = """
 dataDir = string(default='./')
@@ -30,7 +26,6 @@ autoLoadLU = boolean(default=True)
 warnAll = boolean(default=True)
 reScaleAxes = boolean(default=True)
 """
-
 
 def doCheckVersions(verbose=True):
     ''' Get version numbers for python modules  '''
