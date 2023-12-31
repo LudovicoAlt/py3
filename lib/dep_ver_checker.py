@@ -9,7 +9,6 @@ import os
 import sys
 import shutil
 
-#from lib.config import configobj
 import configobj #essentially just installed v5
 from lib import validate
 

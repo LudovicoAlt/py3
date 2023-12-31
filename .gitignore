@@ -1,1 +1,5 @@
 osv_dl_script.sh
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc

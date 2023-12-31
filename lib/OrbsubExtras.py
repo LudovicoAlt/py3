@@ -57,8 +57,8 @@ class GUI_plotFrame(wx.Frame):
         else:
             # On Windows platform, default window size is incorrect, so set
             # toolbar width to figure width.
-            tw, th = self.toolbar.GetSizeTuple()
-            fw, fh = self.canvas.GetSizeTuple()
+            tw, th = self.toolbar.GetSize() # deprecated GetSizeTuple()
+            fw, fh = self.canvas.GetSize() # deprecated GetSizeTuple()
             # By adding toolbar in sizer, we are able to put it at the bottom
             # of the frame - so appearance is closer to GTK version.
             # As noted above, doesn't work for Mac.
