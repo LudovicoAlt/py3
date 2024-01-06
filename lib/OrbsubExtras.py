@@ -54,9 +54,13 @@ class GUI_plotFrame(wx.Frame):
             # having a toolbar in a sizer. This work-around gets the buttons
             # back, but at the expense of having the toolbar at the top
             self.SetToolBar(self.toolbar)
+
+            
+
         else:
             # On Windows platform, default window size is incorrect, so set
             # toolbar width to figure width.
+            
             tw, th = self.toolbar.GetSize() # deprecated GetSizeTuple()
             fw, fh = self.canvas.GetSize() # deprecated GetSizeTuple()
             # By adding toolbar in sizer, we are able to put it at the bottom

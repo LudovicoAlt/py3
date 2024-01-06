@@ -142,6 +142,7 @@ class OptDialog(wx.Dialog):
         '''
         Layout the controls
         '''
+        
         vsizer = wx.BoxSizer(wx.VERTICAL)
         # Make the labels/buttons & set defaults
         #self.panel = panel = wx.Panel(self)
@@ -265,10 +266,11 @@ class OptDialog(wx.Dialog):
         sizer.Add(btnsizer, 0, wx.ALL|wx.CENTER, 0)
         sizer.AddSpacer(sizerSpacing) 
         # Awful hack to stop ok/cancel buttons being cutoff
-        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, 5)
-        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, 5)
-        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, 5)        
-        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, 5)        
+        #TODO Fix this god forsaken hack
+        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, 30)
+        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, 30)
+        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, 30)        
+        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, 100)        
         
         # Finally assign the main outer sizer to the panel
         self.SetSizer(sizer)
