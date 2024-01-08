@@ -8,7 +8,6 @@ Downloads CTIME/CSPEC/POSHIST Files
 
 import argparse
 import ftplib
-from ftplib import FTP, FTP_TLS
 import sys
 
 def parseArgs():
@@ -42,7 +41,7 @@ class Data_date:
 			print("No arguments passed - returning ...")
 			return
 		print("Connecting ...")
-		ftp = FTP_TLS('heasarc.gsfc.nasa.gov')   
+		ftp = ftplib.FTP_TLS('heasarc.gsfc.nasa.gov') #Changed, before pointed to legacy   
 		ftp.login()
 		ftp.prot_p()
 		print("Connected")

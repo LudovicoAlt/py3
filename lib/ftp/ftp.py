@@ -94,7 +94,10 @@ class Downloader:
 			lines += '\n'
 			lines += 'cd ../\n\n'
 		lines += 'cd %s \n' %self.originalDirectory
-		self.lines = lines.replace('\\', '/') #so the file works with bash
+		# so the file works with bash, windows uses backwards slashes for paths, 
+		# python uses that when writing the file making it unusable in bash that 
+		# looks for forward slashes
+		self.lines = lines.replace('\\', '/') 
 
 	def save(self):
 		''' Save download script to file'''
