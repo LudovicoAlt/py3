@@ -20,9 +20,12 @@ To run the GUI. <br>
 
 If you want to run osv.py from any location (Linux) :
 
-`alias osv="python /<dir_of_osv>/osv.py"`
-`source ~/.bash_profile`
-`osv`
+Create an alias of the command
+`alias osv="python /<dir_of_osv>/osv.py"`<br>
+Update bash or restart the terminal 
+`source ~/.bash_profile`<br>
+You should be able to run osv in any directory
+`osv`<br>
 
 In general the possible commands are :
 
