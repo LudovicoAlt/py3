@@ -1,6 +1,6 @@
 from ftplib import FTP
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 import urllib.request, urllib.error, urllib.parse
 
 def chdir(directory):

@@ -832,6 +832,7 @@ class OrbsubGUI(wx.Frame):
                         # for fill_between
                         # TODO self.axes[axis].collections.remove(line)
                         line.remove()
+                        
                     except TypeError: 
                         # for fill
                         for i in line:
