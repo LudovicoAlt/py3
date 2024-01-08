@@ -70,6 +70,9 @@ if __name__ == '__main__':
             exit()
         elif args[0].lower() == "checkvers":
             setup.doCheckVersions()
+            exit()
+        elif args[0].lower() == "getconfig":
+            setup.getConfig(printflag=True)
             exit()            
         elif "ver" in args[0].lower():
             print(("osv v%s"%__version__))

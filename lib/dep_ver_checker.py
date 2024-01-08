@@ -8,7 +8,8 @@ import os
 import sys
 
 import configobj #essentially just installed v5
-from lib import validate
+#from lib import validate
+import validate
 
 appName = 'osv'
 
@@ -29,7 +30,7 @@ reScaleAxes = boolean(default=True)
 
 def doCheckVersions(verbose=True):
     ''' Get version numbers for python modules  '''
-    modules = ['matplotlib', 'astropy', 'numpy', 'argparse', 'configobj']
+    modules = ['matplotlib', 'astropy', 'numpy', 'argparse', 'configobj', 'wxPython']
     nullVal = 'unknown'
     try:
         import matplotlib
@@ -52,19 +53,24 @@ def doCheckVersions(verbose=True):
     except:
         argVer = nullVal
     try:
+        import wx
+        wxPVer = wx.__version__
+    except:
+        wxPVer = nullVal
+    try:
         #from lib.config import configobj
         import configobj
         cfgVer = configobj.__version__
     except:
         cfgVer = nullVal
-    versions = [mplVer, pyfVer, npyVer, npyVer, cfgVer]
+    versions = [mplVer, pyfVer, npyVer, npyVer, cfgVer, wxPVer]
     mes = ''
     for i,j in zip(modules, versions):
         mes += '%s: %s\n' %(i,j)   
     print(mes)
     return mes
     
-def getConfig(default=False):
+def getConfig(default=False, printflag=False):
     ''' Read config file and return dictionary with values  '''
     if not os.path.isdir(iniDir):
         os.makedirs(iniDir)
@@ -74,7 +80,10 @@ def getConfig(default=False):
     else:
         config = configobj.ConfigObj(iniPath, configspec = spec)
     validator = validate.Validator()
-    config.validate(validator, copy = True)    
+    config.validate(validator, copy = True)   
+    if printflag:
+        print("The config file: ")
+        print(config) 
     return config
 
 def doValidateConfig(config):
@@ -175,6 +184,12 @@ def doCheckDeps():
         print("*** Numpy not found - cannot continue without this module")
         importError = True
         missingModules.append('numpy')
+    try: 
+        import configobj
+    except ImportError:
+        print("*** ConfigObj not found - cannot continue without this module")
+        importError = True
+        missingModules.append('configobj')
     try: 
         import wx
     except ImportError:
