@@ -1,5 +1,6 @@
 from ftplib import FTP
 import os
+from pathlib import Path, PurePosixPath
 import urllib.request, urllib.error, urllib.parse
 
 def chdir(directory):
@@ -42,13 +43,12 @@ class Downloader:
 		Creates a script which can be used to download gbm data
 		'''
 		curPath = os.path.realpath(__file__)
-		# we want to go two steps up to reach the path for osv
-		# surely a nicer way of doing this.
-		topPath = os.path.split(os.path.split(os.path.split(curPath)[0])[0])[0]
-		osvPath = os.path.join(topPath, "osv.py")
+		topPath = Path(curPath).parents[2] # Should look two levels up to find osv.py, 0 is ftp, 1 is lib, 2 is package folder
+		osvPath = topPath / "osv.py" #using Path from Python >3.4 replaces os.path.join(topPath, "osv.py")
 
 		lines = ''
-		lines += 'cd %s\n' %dataDirectory
+		lines += 'cd %s\n' % dataDirectory
+		print(dataDirectory)
 		days = []
 		if self.pos:
 			days.extend(self.files['pos'])
@@ -67,6 +67,7 @@ class Downloader:
 
 			if not len(self.files['ctime'][i] + self.files['cspec'][i]) and not (i in self.files['pos']):
 				continue
+
 			lines += 'if [ ! -d "%s" ]; then\n' %(i)
 			lines += '\tmkdir %s\n' %i
 			lines += 'fi\n'
@@ -86,19 +87,19 @@ class Downloader:
 					data += ' --cspec '
 					for j in self.files['cspec'][i]:
 						dets += "%s "%j
+			
 			lines += 'python %s getData %s %s'%(osvPath, i,data)
 			if len(dets):
 				lines += ' --dets %s ' %dets	
 			lines += '\n'
 			lines += 'cd ../\n\n'
 		lines += 'cd %s \n' %self.originalDirectory
-		self.lines = lines
+		self.lines = lines.replace('\\', '/') #so the file works with bash
 
 	def save(self):
 		''' Save download script to file'''
-		fo = open('osv_dl_script.sh', 'w')
-		fo.write(self.lines)
-		fo.close()
+		fo = Path( 'osv_dl_script.sh' )
+		fo.write_text(self.lines)
 
 	def download(self, dataDirectoryx):
 		''' take in a directory, cd to it and download missing files via ftp
