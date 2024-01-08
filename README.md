@@ -10,7 +10,7 @@ wxPython (tested 4.2.1)
 
 wxPython in particular requires gtk3 so install that if it gives you errors :
 
-`sudo apt-get install libgtk-3-dev`
+`sudo apt-get install libgtk-3-dev` (Linux)
 
 Within the directory run:
 
