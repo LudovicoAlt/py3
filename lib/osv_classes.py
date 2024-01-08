@@ -37,7 +37,7 @@ class OSV_Instance:
     def delete(self):
         if self.gui:
             self.gui.delete()
-    def runOrbSub(self):
+    def runOrbSub(self, flag_nogui = False):
         self.orbsub = orbsub.OrbSub(self.opts)
         mes = 'Running OrbSub Code:'
         mes = ' Finding Files...'
@@ -111,9 +111,16 @@ class OSV_Instance:
                 self.gui.ErrorMes('Oribital Subtraction ran into trouble. Please consult the log for full details',
                                   'Oribital Subtraction failed')
                 self.gui.log.show(self.gui)
+
+        print("This is the data keys of b0 : ")
+        print( self.orbsub.data['b0'].data.keys() )
         # All done - make make display data
         if self.gui:
             self.gui.InitData(self.orbsub)
+        # Add a Flag for nogui, where the data is saved in a file (?)
+        # The data is in self.orbsub.data ['b0'] like dictionary
+        # initData of gui_classes extracts all the data so look there
+            
     def restore(self):
         if self.gui:
             self.gui.Show()

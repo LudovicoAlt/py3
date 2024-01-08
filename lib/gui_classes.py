@@ -546,6 +546,7 @@ class OrbsubGUI(wx.Frame):
                 self.gti = self.orbsub.pos.gti[self.curDet]
                 self.occTI = self.orbsub.pos.occTI
         self.plot()
+        
     def plotTI(self, index):
         ''' 
         plot time intervals - this includes occultation steps (occ) and 

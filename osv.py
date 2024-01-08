@@ -81,7 +81,7 @@ if __name__ == '__main__':
             opts = lib.options.cmdLineOptions()
     else:
         opts = None
-
+    
     app = OSV(False,)
     app.OnLaunch(opts)
     app.MainLoop()
