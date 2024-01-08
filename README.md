@@ -1,12 +1,12 @@
 Tested for Windows 11 and Ubuntu 22.04
-Python 3.11.7
-Requires:
-matplotlib (tested 3.8.2)
-astropy (tested 6.0.0)
-numpy (tested 1.25.2)
-argparse (tested 1.25.2)
-configobj (tested 5.0.8)
-wxPython (tested 4.2.1)
+Python 3.11.7<br>
+Requires:<br>
+matplotlib (tested 3.8.2)<br>
+astropy (tested 6.0.0)<br>
+numpy (tested 1.25.2)<br>
+argparse (tested 1.25.2)<br>
+configobj (tested 5.0.8)<br>
+wxPython (tested 4.2.1)<br>
 
 wxPython in particular requires gtk3 so install that if it gives you errors :
 
