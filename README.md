@@ -1,4 +1,4 @@
-Tested for Windows 11 and Ubuntu 22.04
+Tested for Windows 11 and Ubuntu 22.04<br>
 Python 3.11.7<br>
 Requires:<br>
 matplotlib (tested 3.8.2)<br>
