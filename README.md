@@ -9,6 +9,7 @@ configobj (tested 5.0.8)<br>
 wxPython (tested 4.2.1)<br>
 
 To quickly install all the pakcages, run within the project directory :
+
 `python -m pip install -r requirements.txt`
 
 wxPython in particular requires gtk3 so install that if it gives you errors :
