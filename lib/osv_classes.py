@@ -274,10 +274,13 @@ class OptDialog(wx.Dialog):
         sizer.AddSpacer(sizerSpacing) 
         # Awful hack to stop ok/cancel buttons being cutoff
         #TODO Fix this god forsaken hack
-        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, 30)
-        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, 30)
-        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, 30)        
-        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, 100)        
+        dim = 40
+        if "__WXMSW__" in wx.Platform:
+            dim = 0
+        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, dim)
+        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, dim)
+        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, dim)        
+        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, dim)        
         
         # Finally assign the main outer sizer to the panel
         self.SetSizer(sizer)
