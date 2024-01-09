@@ -1,0 +1,5 @@
+astropy==6.0.0
+configobj==5.0.8
+matplotlib==3.8.2
+numpy==1.25.2
+wxPython==4.2.1
