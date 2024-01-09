@@ -4,9 +4,12 @@ Requires:<br>
 matplotlib (tested 3.8.2)<br>
 astropy (tested 6.0.0)<br>
 numpy (tested 1.25.2)<br>
-argparse (tested 1.25.2)<br>
+argparse (tested 1.25.2) (included in Python standard lib) <br>
 configobj (tested 5.0.8)<br>
 wxPython (tested 4.2.1)<br>
+
+To quickly install all the pakcages, run within the project directory :
+`python -m pip install -r requirements.txt`
 
 wxPython in particular requires gtk3 so install that if it gives you errors :
 
