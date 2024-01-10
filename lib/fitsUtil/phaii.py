@@ -315,10 +315,14 @@ class PHAII:
         eventsHdu = pf.BinTableHDU.from_columns(eventsCols, hdr)
         self.eventsExt = eventsHdu
     def write(self):
-        ''' '''
+        ''' 
+        Write the HDU list to the file
+        '''
         hdulist = pf.HDUList([self.primExt, self.eBoundsExt, self.eventsExt, 
                               self.gtiExt])
+        print(hdulist)
         hdulist.writeto(self.filename, overwrite = self.clobber)
+        hdulist.close()
 
         
 

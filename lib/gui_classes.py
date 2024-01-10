@@ -349,6 +349,7 @@ class OrbsubGUI(wx.Frame):
         self.pltM_bkg = self.pltMenu.Append(self.pltM_bkgId, "Plot backgrounds separately", "Text", None)
         self.pltM_lc = self.pltMenu.Append(self.pltM_lcId, "Plot background subtracted LC", "Text", None) 
         self.rebM_inv = self.rbnMenu.Append(-1, "Temporal", "Text", None)
+        self.rebM_counts = self.rbnMenu.Append(-1, "Log Counts", "Text", None)
         # self.rebM_inv = self.rbnMenu.Append(-1, "Signal/Noise", "Text", None)
         # self.rebM_inv = self.rbnMenu.Append(-1, "By Selection", "Text", None)
         
@@ -454,6 +455,7 @@ class OrbsubGUI(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnExportPHA, self.expM_pha)
 		# Bind rebin options
         self.Bind(wx.EVT_MENU, self.onRebin, self.rebM_inv )
+        self.Bind(wx.EVT_MENU, self.onLogCounts, self.rebM_counts )
         # Bind closing 
         self.Bind(wx.EVT_CLOSE, self.OnClose)
         #wx.EVT_PAINT(self, self.OnPaint)
@@ -1029,6 +1031,17 @@ class OrbsubGUI(wx.Frame):
         else:
             pass
         dlg.Destroy()  
+    def onLogCounts(self, event):
+        '''
+        Rebins to Logscale the Counts/s Axis (y axis)
+        '''
+        #Add a log options for Counts
+        if self.axes[0].get_yscale() != 'log' :
+            self.axes[0].set_yscale('log')
+        else :
+            self.axes[0].set_yscale('linear')
+        self.IterDet() #Replots
+        return
     def OnAbout(self, event):
         """Show the about dialog"""
         info = wx.AboutDialogInfo()
