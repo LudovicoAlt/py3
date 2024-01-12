@@ -23,6 +23,7 @@ class OrbSub():
         #Regions is a class which contains the time ranges
         regions = Regions(opts.tzero, opts.tRange[0], opts.tRange[1], opts.offset,
                           orbit_period = self.period)
+        
         #Files is a class which is used to first calculate what days are needed,
         #the corresponding files are then found
         files = Files(opts.tzero, regions, opts.offset)
@@ -137,8 +138,7 @@ class OrbSub():
         # Loop over each detector, extract data from relevant temporal regions,
         # then average them to find the bkg.
         for det in self.opts.dets:
-            self.orbMes += ' Processing %s:\n' %det
-            #print det            
+            self.orbMes += ' Processing %s:\n' %det           
             #Read in data from each day & concatenate it into several arrays
             det_data = Pha_data(self.files.pha_files[det])
             det_data.bin_pha(self.regions, self.opts.offset, self.opts)

@@ -699,7 +699,8 @@ class OrbsubGUI(wx.Frame):
                                 np.ones(src[self.lcMask].size) * nominalExp/2.,
                                 self.t[self.lcMask][0] - nominalExp/2.,
                                 self.t[self.lcMask][-1] + nominalExp/2.,
-                                self.pltCfg)
+                                self.pltCfg )
+        
     def OnPlotAllBackgrounds(self, event):
         self.plotAllBackgrounds = not self.plotAllBackgrounds
         self.doLegends()

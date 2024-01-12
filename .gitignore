@@ -7,6 +7,7 @@ osv_dl_script.sh
 
 # C extensions
 *.so
+*.sh
 
 # Distribution / packaging
 .Python

@@ -320,7 +320,6 @@ class PHAII:
         '''
         hdulist = pf.HDUList([self.primExt, self.eBoundsExt, self.eventsExt, 
                               self.gtiExt])
-        print(hdulist)
         hdulist.writeto(self.filename, overwrite = self.clobber)
         hdulist.close()
 

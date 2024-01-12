@@ -243,7 +243,7 @@ def rebin_gbm(x, y, exp, err = [], resolution = [], trange = []):
 
     for i in range(0,nchan):
         y1[:,i]=np.interp(x1,x,y[:,i]/exp)*exp1
-    if err==[]:
+    if len(err)==0: #instead of checking [] check if empty
         #Statistical error
         err1=np.sqrt(y1)
     else:
@@ -453,7 +453,7 @@ def read_poshist(pos_file, verbose = True):
     nt=np.size(data)
     sc_time=data.SCLK_UTC
     sc_quat=np.zeros((nt,4),float)
-    sc_pos=np.zeros((nt,3),float)
+    sc_pos=np.zeros((nt,3),float) # Fermi GBM tools makes this redundant but manually is always fine
     sc_coords=np.zeros((nt,2),float)
     try:
         sc_coords[:,0]=data.SC_LON
@@ -547,7 +547,7 @@ def read_pha(pha_file, gti = False, qualMask = True, tOffset = True,):
     # TODO write tests to double check this util functions
     # TODO double check what this TZERO4 stands for, it offsets way too much
     tzero = 0
-
+    #print(tzero)
     pha_counts = data[2].data['COUNTS'][qual]
     t_start    = data[2].data.TIME[qual]  + tzero
     t_end      = data[2].data.ENDTIME[qual] + tzero
@@ -633,7 +633,7 @@ def calc_angles(sc_time,sc_pos,sc_quat,src_ra,src_dec):
     det_az=[45.89, 45.11, 58.44, 314.87, 303.15,  3.35, 224.93,
              224.62, 236.61, 135.19, 123.73, 183.74, 0, 180]
     dets=np.array(['n0','n1','n2','n3','n4','n5','n6','n7','n8','n9','na','nb','b0','b1'])
-    ndet = 14
+    ndet = 14 #take the length of the array if anything
     det_index = np.arange(0,ndet)
     dtorad_arr = np.ones((ndet))*dtorad
     det_zen = det_zen / dtorad_arr
@@ -646,8 +646,10 @@ def calc_angles(sc_time,sc_pos,sc_quat,src_ra,src_dec):
     det_unit[:,2] = np.cos(det_zen[:])
     
     distfromz = np.zeros((nt),float)
-    distfromgeo = np.zeros((nt),float)    
+    distfromgeo = np.zeros((nt),float) # you can set this to ones and then multiply by the singular values
     distfromdet = np.zeros((nt,ndet),float)
+
+    #numpy can handle this without for loop
     for i in range(0, nt):
         dotprod = np.zeros((3),float)
         dotprod[0] = -sc_pos[i,0]/ math.sqrt(sc_pos[i,0]*sc_pos[i,0]+sc_pos[i,1]*sc_pos[i,1]+sc_pos[i,2]*sc_pos[i,2])
@@ -658,8 +660,8 @@ def calc_angles(sc_time,sc_pos,sc_quat,src_ra,src_dec):
         zdotprod[0] = scz[i,0]/ math.sqrt(scz[i,0]*scz[i,0]+scz[i,1]*scz[i,1]+scz[i,2]*scz[i,2])
         zdotprod[1] = scz[i,1]/ math.sqrt(scz[i,0]*scz[i,0]+scz[i,1]*scz[i,1]+scz[i,2]*scz[i,2])
         zdotprod[2] = scz[i,2]/ math.sqrt(scz[i,0]*scz[i,0]+scz[i,1]*scz[i,1]+scz[i,2]*scz[i,2])
-
-        distfromgeo[i]= dtorad* math.acos(dotprod[0]*sdotprod[0]+dotprod[1]*sdotprod[1]+dotprod[2]*sdotprod[2])
+        # you can multiply dtorad at the end, maybe saves time
+        distfromgeo[i]= dtorad* math.acos(dotprod[0]*sdotprod[0]+dotprod[1]*sdotprod[1]+dotprod[2]*sdotprod[2]) #could use sum of prod for starters
         distfromz[i] =  dtorad* math.acos(sdotprod[0]*zdotprod[0]+sdotprod[1]*zdotprod[1]+sdotprod[2]*zdotprod[2])      
         distfromdet[i,:] = dtorad*np.arccos(det_unit[:,0]*sc_source_pos[i,0]+det_unit[:,1]*sc_source_pos[i,1]+det_unit[:,2]*sc_source_pos[i,2])        
 

@@ -48,7 +48,7 @@ class Downloader:
 
 		lines = ''
 		lines += 'cd %s\n' % dataDirectory
-		print(dataDirectory)
+		
 		days = []
 		if self.pos:
 			days.extend(self.files['pos'])

@@ -16,7 +16,7 @@ wxPython in particular requires gtk3 so install that if it gives you errors :
 
 `sudo apt-get install libgtk-3-dev` (Linux)
 
-Within the directory run:
+Within the directory run :
 
 `python osv.py`
 

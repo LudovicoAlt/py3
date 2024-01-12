@@ -25,6 +25,7 @@ class Regions:
             else:
                 tempShift = orbit_period * float(i)
             shifts.update({i: tempShift})
+            
         signs = {'pre': -1, 'pos': +1, 'src': 0}        
         for i in list(shifts.keys()):
             if i != 'src':
@@ -36,11 +37,14 @@ class Regions:
                     index = range
                 else:
                     index = range+i
+                #TODO This clearly onlt takes the orbit offset, ie 30 takes 30 orbits in the future and past, it doesnt consider
+                # all the orbits in between , which makes sense as some of those will include the SAA
                 temp = np.array([zero_met + tmin + signs[range] * shifts[i], 
                       zero_met + tmax + signs[range] * shifts[i]])
                 ranges.update({index: temp}) 
         self.ranges = ranges
         self.offset = offset
+        
     def __str__(self):
         mes = "Offsets for selection Periods\n" 
 #        mes = mes + "Zero offset: "\n"
@@ -67,6 +71,7 @@ class Files:
                     regions.append(j + i)
             else:
                 regions.append( i )
+            
         for i in regions:
             for t in offsets.ranges[i]:
                 grb_t = util.met_grb(t, day = True)
@@ -294,7 +299,7 @@ class Poshist_data:
                 print(mes)
 
         self.occTI = occI, occJ
-
+from pathlib import Path
 class Pha_data:
     '''
     Class for GBM PHA data
@@ -307,8 +312,9 @@ class Pha_data:
         # the double slash vs forward slash makes it work on windows 
         # does nothing if there are no double slashes
         self.detector =  pha_files[0].replace('\\', '/').split('/')[-1][10:12]
-
+        
         for i in pha_files:
+            
             t_start, t_end, t_exposure, counts,  eMin, eMax = util.read_pha(i)
             
             # TODO clean up, quality is handled in read pha no ?
@@ -320,7 +326,7 @@ class Pha_data:
             #self.pha_data=pha_data[4]
             #qual = pha_data[2].data['QUALITY']
             #qual = (qual!=11)
-
+            
             if i == pha_files[0]:
                 
                 self.t_start = t_start
@@ -333,10 +339,9 @@ class Pha_data:
             else:
                 self.t_start = np.concatenate((self.t_start, t_start))
                 self.t_end = np.concatenate((self.t_end, t_end))
-                self.t_exposure = np.concatenate((self.t_exposure, 
-                                                  t_exposure))
+                self.t_exposure = np.concatenate((self.t_exposure, t_exposure))
                 self.counts = np.concatenate((self.counts, counts))
-
+            
     def bin_pha(self, regions, offset, opts):
         '''
         Bin up pha counts to desired binsize -> also keep original data
@@ -383,8 +388,6 @@ class Pha_data:
                 
                 mask = np.where((self.t_start >= region[0] ) & 
                                 (self.t_end <= region[1]))
-                
-                # print region, opts.tRange
 
                 if not mask[0].size:
                     self.binDataErrMes += "*** Detector: %s, No data found: times: %.3f-%.3f, index: %s\n" %(self.detector, region[0], region[1], index)
@@ -422,16 +425,13 @@ class Pha_data:
         
         # We only want to look at the background regions -> define new offset
         # variable
+        
         bak_offset = list( set(offset) - set(['src']))
         zeromask = None
         # For pre & pos regions, we first sum the counts and error, then 
         # get the average
-
+        
         for j in ['pre','pos']:
-            
-            #TODO I have a suspicion that Files are not actually being read, I should double check if 
-            #400 000 000 passes over an SAA? probably not
-            #does it actually read the files ??
 
             n = 0
             for i in bak_offset:
@@ -442,7 +442,7 @@ class Pha_data:
                 if n == 0:
                     zeromask = (np.average(data[index][1],1)==0)
                     bkg = data[index][1]
-                    bkgErr = data[index][3]**2
+                    bkgErr = data[index][3]**2 # TODO dble check Should the error not be sqrt?
                 else:
                     zeromask = (zeromask == True) | (np.average(data[index][1],1)==0)
                     bkg += data[index][1]
@@ -452,11 +452,12 @@ class Pha_data:
             # We have summed the counts and background (in quadrature)
             # Now we divide by the contributing to get the average 
             bkg = bkg/(1.0*n)
+            
             bkgErr = (1.0/n) * np.sqrt(bkgErr)
             background.update({j:bkg})
             background.update({j+'err':bkgErr})                       
-
         background.update({'all': np.average((background['pre'],background['pos'],),0)})
+        
         allerr=0.5 * np.sqrt(background['preerr']**2 +background['poserr']**2)
         background.update({'allerr': allerr})
 
