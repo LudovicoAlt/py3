@@ -304,7 +304,7 @@ class PHAII:
                               unit = 's', bscale = 1, bzero = self.trig)
         endTime = pf.Column(name='ENDTIME', format='1D', array = self.tj, 
                               unit = 's', bscale = 1, bzero = self.trig)
-        if self.statErr is not None:
+        if self.statErr is not None and False:
             hdr['POISSERR'] = False
             statErr = pf.Column(name='STAT_ERR', format = errFormat, array=self.statErr,
                                 unit = "count", bscale = 1, bzero = 0.)
