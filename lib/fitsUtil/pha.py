@@ -139,7 +139,7 @@ class PHA:
         hdr.set('INFILE01', ''                   , 'Level 1 input lookup table file')     
         hdr.set('INFILE02', ''                   , 'Level 0 input data file')                      
         hdr.set('INFILE03', ''                   , 'Level 0 input data file')                    
-        hdr.set('POISSERR', True                , 'Are errors Poissonian?')
+        
         if self.hdrComment:
             hdr.add_comment(self.hdrComment)
         hdu = pf.PrimaryHDU(data = None, header = hdr)
@@ -272,8 +272,9 @@ class PHA:
         hdr.set('BACKSCAL', 1.                   , '')
         hdr.set('RESPFILE', 'none'               , '')
         hdr.set('ANCRFILE', 'none'               , '')
-        hdr.set('SYS_ERR',  0.                   , '')
-        hdr.set('POISSERR',  False                  , '')
+        #hdr.set('SYS_ERR',  0.                   , '')
+        hdr.set('POISSERR',  True                  , '')
+        
         hdr.set('GROUPING', 0                    , '')
         hdr.set("CORRFILE", 'none', 'associated correction filename')
         hdr.set("CORRSCAL", 1.0, 'correction file scaling factor')
@@ -292,7 +293,8 @@ class PHA:
         hdr.set('EXTVER'  , 1                    , 'Version of this extension format')
         
         if self.statErr:
-            hdr['POISSERR'] = False
+            print("Hello")
+            #hdr['POISSERR'] = False
 
         #Now we define data table
         channels = np.arange(self.nchan).reshape(1, 128)
