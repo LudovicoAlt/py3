@@ -41,7 +41,11 @@ class PHAII:
                   'NAI_06': 'n6', 'NAI_07': 'n7', 'NAI_08': 'n8', 
                   'NAI_09': 'n9', 'NAI_10': 'na', 'NAI_11': 'nb', 
                   'BGO_00': 'b0', 'BGO_01': 'b1'}
-        self.det = det
+        
+        detDic_inverted = {v: k for k, v in detDic.items()}
+
+        self.det = detDic_inverted[det]
+
         # Overwrite existing files
         self.clobber = True
         # coord stuff
