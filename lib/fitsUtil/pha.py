@@ -139,6 +139,7 @@ class PHA:
         hdr.set('INFILE01', ''                   , 'Level 1 input lookup table file')     
         hdr.set('INFILE02', ''                   , 'Level 0 input data file')                      
         hdr.set('INFILE03', ''                   , 'Level 0 input data file')                    
+        hdr.set('POISSERR', True                , 'Are errors Poissonian?')
         if self.hdrComment:
             hdr.add_comment(self.hdrComment)
         hdu = pf.PrimaryHDU(data = None, header = hdr)
