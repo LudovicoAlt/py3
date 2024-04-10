@@ -78,6 +78,7 @@ class PHA:
         self.rate = pha.sum(0)/self.exp
         
         if err is None:
+            #Poisson error divided by exposure
             self.rateErr = np.sqrt(pha.sum(0))/self.exp
         else:
             self.rateErr = np.sqrt((err**2).sum(0))/self.exp
@@ -289,19 +290,51 @@ class PHA:
             hdr['POISSERR'] = False
 
         #Now we define data table
-        channels = np.arange(0, self.nchan)
-        channelsCols = pf.Column(name='Channels', format='1I', array = channels, 
-                              unit = 'none', ) # bscale = 1, bzero = 0)
-        rateCols = pf.Column(name='RATE', format='1E', array = self.rate, 
-                              unit = 'count/s',)# bscale = 1, bzero = 32768)
+        channels = np.arange(self.nchan).reshape(1, 128)
+        qual_in = (np.ones(self.nchan) * self.qual).reshape(1, 128)
+        rate_in = self.rate.reshape(1, 128)
+        group_in = np.ones(self.nchan).reshape(1, 128)
+
+        channelsCols = pf.Column(name='CHANNEL', format=f'{self.nchan}I', array = channels) # bscale = 1, bzero = 0)
+        #rateCols = pf.Column(name='RATE', format='1E', array = self.rate, unit = 'count/s',)# bscale = 1, bzero = 32768)
+        rateCols = pf.Column(name='RATE', format=f'{self.nchan}D', array = rate_in, unit='Count/s')
+
+
+        time_col        = pf.Column(name='TSTART'   , format='D', array = [min(self.ti)], unit = 's')
+        telapse_col     = pf.Column(name='TELAPSE'  , format='D', array = [max(self.ti)-min(self.ti)], unit = 's')
+        specnum_col     = pf.Column(name='SPEC_NUM' , format='I', array = [1])
+
+        quality_col     = pf.Column(name='QUALITY'  , format=f'{self.nchan}I', array = qual_in)
+        groupin_col     = pf.Column(name='GROUPING' , format=f'{self.nchan}I', array = group_in)
+        exposure_col    = pf.Column(name='EXPOSURE' , format='D', array = [self.exp], unit = 's')
+        backfile_col    = pf.Column(name='BACKFILE' , format='6A', array = np.array(['none']))
+        respfile_col    = pf.Column(name='RESPFILE' , format='6A', array = np.array(['none']))
+        ancrfile_col    = pf.Column(name='ANCRFILE' , format='6A', array = np.array(['none']))
        # rateErrCols = pf.Column(name='STAT_ERR', format='1E', array = self.rateErr, 
        #                       unit = 'count/s', )#bscale = 1, bzero = 32768)
         # TODO - add error column if there are issues
 
         #eventsCols = pf.ColDefs([channelsCols, rateCols, rateErrCols])
-        eventsCols = pf.ColDefs([channelsCols, rateCols])
+        # eventsCols = pf.ColDefs([channelsCols, 
+        #                          rateCols])
+
+        eventsCols = pf.ColDefs([time_col, 
+                         telapse_col, 
+                         specnum_col, 
+                         channelsCols, 
+                         rateCols, 
+                         quality_col, 
+                         groupin_col, 
+                         exposure_col,
+                         backfile_col,
+                         respfile_col,
+                         ancrfile_col
+                         ])
+
+        print(eventsCols)
 
         eventsHdu = pf.BinTableHDU.from_columns(eventsCols, hdr)
+        print(eventsHdu.data["Rate"].shape)
         self.eventsExt = eventsHdu
     def write(self):
         ''' 
