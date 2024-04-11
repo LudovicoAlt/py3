@@ -293,7 +293,6 @@ class PHA:
         hdr.set('EXTVER'  , 1                    , 'Version of this extension format')
         
         if self.statErr:
-            print("Hello")
             #hdr['POISSERR'] = False
 
         #Now we define data table
@@ -338,10 +337,9 @@ class PHA:
                          ancrfile_col
                          ])
 
-        print(eventsCols)
 
         eventsHdu = pf.BinTableHDU.from_columns(eventsCols, hdr)
-        print(eventsHdu.data["Rate"].shape)
+        
         self.eventsExt = eventsHdu
     def write(self):
         ''' 
