@@ -292,7 +292,7 @@ class PHA:
         hdr.set('HDUCLAS4', 'TYPEI'             , '')
         hdr.set('EXTVER'  , 1                    , 'Version of this extension format')
         
-        if self.statErr:
+        #if self.statErr:
             #hdr['POISSERR'] = False
 
         #Now we define data table
