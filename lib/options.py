@@ -8,6 +8,7 @@ import lib.dep_ver_checker as setup
 
 def cmdLineOptions():
     cfg = setup.getConfig()
+
     booleanArg = {'action': 'store_true', 'default': False}
     parser = argparse.ArgumentParser(description = 'Estimate the background for\
                                         Fermi GBM using the orbital\
@@ -47,7 +48,6 @@ def cmdLineOptions():
     parser.add_argument('--coords', help = 'Source coordinates (RA, Dec)',
                         type = float, default = False, nargs = 2)                        
 
-    
     args = parser.parse_args()
     # We now need to convert these arguments to 
     # that required by orbsub. 
@@ -127,9 +127,10 @@ class OSV_Args:
             self.coords = args.coords
             self.doGTI = True
         # self.reCalcOrbit = args.reCalcOrbit
+
     def check(self):
         '''
-        Are passed options sensible? Lets check em.
+        Are passed options sensible? Lets check em. 
         Should be called after options are received from gui.
         '''
         self.tRange = [float(self.tRange[0]), float(self.tRange[1])]
@@ -148,8 +149,6 @@ class OSV_Args:
             self.error = True
             self.err_mes += '*** tZero does not fall \n'
             self.err_mes += '    within the lifetime of Fermi\n'''
-            #self.err_mes += '*** tZero does not fall within lifetime of Fermi\n'''
-            #self.err_mes += '*** tZero does not fall within lifetime of Fermi\n'''
 
         if self.dets == []:
             self.warning = True
