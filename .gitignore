@@ -5,6 +5,9 @@ osv_dl_script.sh
 *.py[cod]
 *$py.class
 
+#I want to ignore any files that have 6 numbers
+[0-9][0-9][0-9][0-9][0-9][0-9]
+
 # C extensions
 *.so
 *.sh

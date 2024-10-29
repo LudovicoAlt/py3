@@ -210,7 +210,7 @@ class BkgSubLC(GUI_plotFrame):
 
         ax = self.axes[0]
         self.x = x
-        self.net = src - bkg
+        self.net = (src - bkg)
         self.err = np.sqrt(srcErr**2 + bkgErr**2)
         ax.step(self.x, self.net, where = "mid", color = self.pltCfg['srcLine'], lw=1.2, label = "Net Rate")
         ax.errorbar(self.x, self.net, yerr = self.err, marker = "", ls = "", capsize = 0, color = self.pltCfg['srcLine'])
@@ -221,8 +221,77 @@ class BkgSubLC(GUI_plotFrame):
         self.widths = widths
 
         self.axes[0].axhline(0, ls = "--", color = "k")
+        self.axes[0].axhline(3, ls = "--", color = "red")
 
         self.axes[0].set_ylabel('Rate (counts/s)', fontsize = pltCfg['fontsize'], fontname = self.pltCfg['font'],)
+        self.axes[0].set_xlabel('Time (s)', fontsize = pltCfg['fontsize'], fontname = self.pltCfg['font'],)
+
+        leg = self.axes[0].legend()
+        self.doLegend(leg)
+
+class ResLC(GUI_plotFrame):
+    def makePlot(self, x, src, srcErr, bkg, bkgErr, widths, tStart, tStop, pltCfg):
+        ''' '''
+        self.pltCfg = pltCfg        
+        for ax in self.axes:
+            ax.set_facecolor(self.pltCfg['background'])
+            plt.setp(list(ax.spines.values()), color = self.pltCfg['foreground'])
+            ax.tick_params(axis='both', which='major', 
+                            labelsize = self.pltCfg['fontsizeLabel'],
+                            color = self.pltCfg['foreground'])
+            ax.tick_params(axis='both', which='minor',
+                            labelsize = self.pltCfg['fontsizeLabel'],
+                            color = self.pltCfg['foreground'])
+
+        ax = self.axes[0]
+        self.x = x
+        self.net = (src - bkg) / (bkg)**0.5
+        self.err = 0#np.sqrt(srcErr**2 + bkgErr**2)
+        ax.step(self.x, self.net, where = "mid", color = self.pltCfg['srcLine'], lw=1.2, label = "Net Rate")
+        ax.errorbar(self.x, self.net, yerr = self.err, marker = "", ls = "", capsize = 0, color = self.pltCfg['srcLine'])
+        ax.set_xlim(x[0], x[-1])
+
+        self.tStart = tStart
+        self.tStop = tStop
+        self.widths = widths
+
+        self.axes[0].axhline(0, ls = "--", color = "k")
+
+        self.axes[0].set_ylabel("(s-b)/b^0.5", fontsize = pltCfg['fontsize'], fontname = self.pltCfg['font'],)
+        self.axes[0].set_xlabel('Time (s)', fontsize = pltCfg['fontsize'], fontname = self.pltCfg['font'],)
+
+        leg = self.axes[0].legend()
+        self.doLegend(leg)
+
+class SummedResLC(GUI_plotFrame):
+    def makePlot(self, x, src, srcErr, bkg, bkgErr, widths, tStart, tStop, pltCfg):
+        ''' '''
+        self.pltCfg = pltCfg        
+        for ax in self.axes:
+            ax.set_facecolor(self.pltCfg['background'])
+            plt.setp(list(ax.spines.values()), color = self.pltCfg['foreground'])
+            ax.tick_params(axis='both', which='major', 
+                            labelsize = self.pltCfg['fontsizeLabel'],
+                            color = self.pltCfg['foreground'])
+            ax.tick_params(axis='both', which='minor',
+                            labelsize = self.pltCfg['fontsizeLabel'],
+                            color = self.pltCfg['foreground'])
+
+        ax = self.axes[0]
+        self.x = x
+        self.net = (src - bkg) / (bkg)**0.5
+        self.err = 0
+        ax.step(self.x, self.net, where = "mid", color = self.pltCfg['srcLine'], lw=1.2, label = "Net Rate")
+        ax.errorbar(self.x, self.net, yerr = self.err, marker = "", ls = "", capsize = 0, color = self.pltCfg['srcLine'])
+        ax.set_xlim(x[0], x[-1])
+
+        self.tStart = tStart
+        self.tStop = tStop
+        self.widths = widths
+
+        self.axes[0].axhline(0, ls = "--", color = "k")
+
+        self.axes[0].set_ylabel("(s-b)/b^0.5", fontsize = pltCfg['fontsize'], fontname = self.pltCfg['font'],)
         self.axes[0].set_xlabel('Time (s)', fontsize = pltCfg['fontsize'], fontname = self.pltCfg['font'],)
 
         leg = self.axes[0].legend()

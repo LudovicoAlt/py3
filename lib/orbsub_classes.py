@@ -442,7 +442,7 @@ class Pha_data:
                 if n == 0:
                     zeromask = (np.average(data[index][1],1)==0)
                     bkg = data[index][1]
-                    bkgErr = data[index][3]**2 # TODO dble check Should the error not be sqrt?
+                    bkgErr = data[index][3]**2 #! TODO dble check Should the error not be sqrt?
                 else:
                     zeromask = (zeromask == True) | (np.average(data[index][1],1)==0)
                     bkg += data[index][1]
@@ -464,27 +464,30 @@ class Pha_data:
         #Now find which indices for values of non-zero counts common to all 
         #bkg regions. Use this to set counts to zero & for quality flag
         zeromask = (zeromask == True) | (np.average(data['src'][1],1) == 0)
-        for i in range(1,zeromask.size-1):
+        for i in range(1, zeromask.size-1):
             if zeromask[i] == True:
                 if zeromask[i-1] != True:
                 #This seemed to be removing too much data - edited 16.12.11
                     zeromask[i-1:i] = True
+        
         #Set any bin which has one or more saa contributers to zero
         for i in ['all','pre','pos','preerr','poserr','allerr']:
             background[i][zeromask] = 0
+
         data['src'][1][zeromask] = 0 # 1 -> counts
         data['src'][3][zeromask] = 0 # 3 -> errors
 
         # Any SAA bin is flagged as bad (1)
         # Bins beside SAA shoule be flagged as dubious (2) - come back to later
-        quality=np.zeros(background['all'].shape[0])
-        quality[zeromask]=1
-        for i in range(1,quality.size -1):
-                if quality[i]==1:
-                    if quality[i-1]!=1:
-                        quality[i-10:i]=1
-        self.quality=quality
-        self.background=background
+        quality = np.zeros(background['all'].shape[0])
+        quality[zeromask] = 1
+        for i in range(1, quality.size -1):
+                if quality[i] == 1:
+                    if quality[i-1] != 1:
+                        quality[i-10:i] = 1
+
+        self.quality = quality
+        self.background = background
 
 
         # The exposure is stored separately for each background region. We also want to calculate the total average,

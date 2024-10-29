@@ -251,6 +251,8 @@ class OrbsubGUI(wx.Frame):
         self.pointingPlot = False    
         self.plotAllBackgrounds = False
         self.bkgSubLC = False
+        self.plotResiduals = False
+
     def InitUI(self):
         ''' setup user interface '''
         # Figure & canvas
@@ -344,10 +346,14 @@ class OrbsubGUI(wx.Frame):
         self.pltM_ptgId = wx.NewId()
         self.pltM_bkgId = wx.NewId()
         self.pltM_lcId =  wx.NewId()
+        self.pltM_resId = wx.NewId()
+
         self.pltM_ang = self.pltMenu.Append(self.pltM_angId, "Plot Detector Angles", "Text", None)
         self.pltM_ptg = self.pltMenu.Append(self.pltM_ptgId, "Plot S/C Pointing", "Text", None)
         self.pltM_bkg = self.pltMenu.Append(self.pltM_bkgId, "Plot backgrounds separately", "Text", None)
         self.pltM_lc = self.pltMenu.Append(self.pltM_lcId, "Plot background subtracted LC", "Text", None) 
+        self.pltM_res = self.pltMenu.Append(self.pltM_resId, "Plot Residuals of signal - background", "Test", None)
+
         self.rebM_inv = self.rbnMenu.Append(-1, "Temporal", "Text", None)
         self.rebM_counts = self.rbnMenu.Append(-1, "Log Counts", "Text", None)
         # self.rebM_inv = self.rbnMenu.Append(-1, "Signal/Noise", "Text", None)
@@ -449,6 +455,7 @@ class OrbsubGUI(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnPlotAngles, self.pltM_ang)
         self.Bind(wx.EVT_MENU, self.OnPlotAllBackgrounds, self.pltM_bkg)
         self.Bind(wx.EVT_MENU, self.OnPlotBkgSubLC, self.pltM_lc)
+        self.Bind(wx.EVT_MENU, self.OnPlotResiduals, self.pltM_res)
         # Bind export options
         self.Bind(wx.EVT_MENU, self.OnExportPHAII, self.expM_pii)
         self.Bind(wx.EVT_MENU, self.OnExportASCLC, self.expM_alc)
@@ -669,6 +676,7 @@ class OrbsubGUI(wx.Frame):
             self.pointingPlot.Show()
         else:
             self.pointingPlot.Raise()
+
     def OnPlotBkgSubLC(self, event):
         if not self.orbsub:
             return
@@ -700,7 +708,84 @@ class OrbsubGUI(wx.Frame):
                                 self.t[self.lcMask][0] - nominalExp/2.,
                                 self.t[self.lcMask][-1] + nominalExp/2.,
                                 self.pltCfg )
+    
+    def OnPlotResiduals(self, event):
+        if not self.orbsub:
+            return
         
+        if self.plotResiduals:
+            self.plotResiduals.Destroy()
+
+        if self.orbsub.opts.spec_type.lower() =="cspec":
+            nominalExp = 4.096
+        else:
+            nominalExp = 1.024
+
+        eMin =  "%.f"%self.eEdgeMin[self.specMask][0]
+        eMax = "%.f"%self.eEdgeMax[self.specMask][-1]
+
+        if float(eMin) >1e3:
+            eMin = "%s,%s"%(eMin[:-3], eMin[-3:])
+        if float(eMax) >1e3:
+            eMax = "%s,%s"%(eMax[:-3], eMax[-3:])            
+        
+        title = ' Residuals %s: %s -- %s keV'%(self.curDet, eMin, eMax)
+        
+        src  = self.src[:, self.specMask].sum(1)/ self.srcExp
+        srcErr = np.sqrt(self.src[:, self.specMask].sum(1))/ self.srcExp
+        bkg = self.bkg[:, self.specMask].sum(1)/ self.bkgExp
+        bkgErr = np.sqrt(self.bkg[:, self.specMask].sum(1))/ self.bkgExp
+
+        self.plotResiduals = extras.ResLC(self, title = title, plotDimensions = (1,1), plotRatio = (8.,4.))
+        self.plotResiduals.makePlot( self.t[self.lcMask], 
+                                src[self.lcMask],
+                                srcErr[self.lcMask],
+                                bkg[self.lcMask],
+                                bkgErr[self.lcMask],
+                                np.ones(src[self.lcMask].size) * nominalExp/2.,
+                                self.t[self.lcMask][0] - nominalExp/2.,
+                                self.t[self.lcMask][-1] + nominalExp/2.,
+                                self.pltCfg)
+    
+    def OnPlotSummedResiduals(self, event):
+        if not self.orbsub:
+            return
+        
+        if self.plotResiduals:
+            self.plotResiduals.Destroy()
+
+        if self.orbsub.opts.spec_type.lower() =="cspec":
+            nominalExp = 4.096
+        else:
+            nominalExp = 1.024
+
+        eMin =  "%.f"%self.eEdgeMin[self.specMask][0]
+        eMax = "%.f"%self.eEdgeMax[self.specMask][-1]
+
+        if float(eMin) >1e3:
+            eMin = "%s,%s"%(eMin[:-3], eMin[-3:])
+        if float(eMax) >1e3:
+            eMax = "%s,%s"%(eMax[:-3], eMax[-3:])            
+        
+        title = ' Residuals %s: %s -- %s keV'%(self.curDet, eMin, eMax)
+        
+        src  = self.src[:, self.specMask].sum(1)/ self.srcExp
+        srcErr = np.sqrt(self.src[:, self.specMask].sum(1))/ self.srcExp
+        
+        bkg = self.bkg[:, self.specMask].sum(1)/ self.bkgExp
+        bkgErr = np.sqrt(self.bkg[:, self.specMask].sum(1))/ self.bkgExp
+
+        self.plotResiduals = extras.ResLC(self, title = title, plotDimensions = (1,1), plotRatio = (8.,4.))
+        self.plotResiduals.makePlot( self.t[self.lcMask], 
+                                src[self.lcMask],
+                                srcErr[self.lcMask],
+                                bkg[self.lcMask],
+                                bkgErr[self.lcMask],
+                                np.ones(src[self.lcMask].size) * nominalExp/2.,
+                                self.t[self.lcMask][0] - nominalExp/2.,
+                                self.t[self.lcMask][-1] + nominalExp/2.,
+                                self.pltCfg)
+    
     def OnPlotAllBackgrounds(self, event):
         self.plotAllBackgrounds = not self.plotAllBackgrounds
         self.doLegends()
