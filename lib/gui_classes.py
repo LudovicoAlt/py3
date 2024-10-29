@@ -6,7 +6,8 @@ import pickle
 
 import wx
 import matplotlib
-matplotlib.use('WXAgg')
+#matplotlib.use('WXAgg')
+matplotlib.rcParams['backend'] = 'WXAgg' #!from use to manual, safer
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
@@ -1176,6 +1177,7 @@ class OrbsubGUI(wx.Frame):
     def OnExportPHAII(self, event):
         names = self.getOutputName( 'phaii')
         if not len(names): return 
+        print(self.curDet, names)
         self.orbsub.data[self.curDet].write_phaii(self.orbsub.opts, names = names,)
     def OnExportPHA(self,event):
         names = self.getOutputName( 'pha')

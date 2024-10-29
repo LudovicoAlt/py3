@@ -112,8 +112,6 @@ class OSV_Instance:
                                   'Oribital Subtraction failed')
                 self.gui.log.show(self.gui)
 
-        print("This is the data keys of b0 : ")
-        print( self.orbsub.data['b0'].data.keys() )
         # All done - make make display data
         if self.gui:
             self.gui.InitData(self.orbsub)
@@ -272,8 +270,8 @@ class OptDialog(wx.Dialog):
         sizer.AddSpacer(sizerSpacing) 
         sizer.Add(btnsizer, 0, wx.ALL|wx.CENTER, 0)
         sizer.AddSpacer(sizerSpacing) 
-        # Awful hack to stop ok/cancel buttons being cutoff
-        #TODO Fix this god forsaken hack
+        #! Awful hack to stop ok/cancel buttons being cutoff
+        #! TODO Fix this god forsaken hack
         dim = 40
         if "__WXMSW__" in wx.Platform:
             dim = 0

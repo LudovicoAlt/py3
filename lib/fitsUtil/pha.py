@@ -364,7 +364,7 @@ def createPHA(t, exp, pha, det, trigTime, fileStem = '', hdrComment = '', edges 
     replace the usual yymmddfff. hdrComment is a string that will be written
     to the header of the primary extension.   
     '''
-    nChan = pha.shape[1]
+    nChan = pha.shape[1] #!they use phaii variable adjust for clarity?
     phaii = PHA( t, exp, pha, det, trigTime, fileStem, hdrComment, edges,
                     ra, dec, errRad, nChan, err = err, statErr = statErr)
     phaii.doPrimary()

@@ -50,6 +50,8 @@ class OSV(wx.App):
                                             plotDimensions = (2,1,),)
         inst.gui.log.update(opts.__str__())
         inst.runOrbSub()
+        return inst #add a return, shouldn't break anything 
+
     def DialogBox(self, mes, title = 'Error encountered'):
         ''' Show an error widget '''
         wx.MessageBox(mes, title,

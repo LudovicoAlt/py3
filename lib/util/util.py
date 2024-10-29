@@ -646,10 +646,10 @@ def calc_angles(sc_time,sc_pos,sc_quat,src_ra,src_dec):
     det_unit[:,2] = np.cos(det_zen[:])
     
     distfromz = np.zeros((nt),float)
-    distfromgeo = np.zeros((nt),float) # you can set this to ones and then multiply by the singular values
+    distfromgeo = np.zeros((nt),float) #! you can set this to ones and then multiply by the singular values
     distfromdet = np.zeros((nt,ndet),float)
 
-    #numpy can handle this without for loop
+    #! numpy can handle this without for loop
     for i in range(0, nt):
         dotprod = np.zeros((3),float)
         dotprod[0] = -sc_pos[i,0]/ math.sqrt(sc_pos[i,0]*sc_pos[i,0]+sc_pos[i,1]*sc_pos[i,1]+sc_pos[i,2]*sc_pos[i,2])

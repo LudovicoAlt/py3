@@ -10,6 +10,8 @@ import astropy.io.fits as pf
 from lib import fitsUtil
 import lib.util.util as util
 
+from pathlib import Path
+
 class Regions:
     '''
     Determine the time of selection regions
@@ -160,6 +162,7 @@ class Poshist_data:
         '''
         Read in data for a list of POSHIST Files 
         '''
+        
         for i in pos_files:
             poshist_data = util.read_poshist(i, verbose = False)
             if i == pos_files[0]:
@@ -299,7 +302,7 @@ class Poshist_data:
                 print(mes)
 
         self.occTI = occI, occJ
-from pathlib import Path
+
 class Pha_data:
     '''
     Class for GBM PHA data
