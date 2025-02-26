@@ -91,6 +91,7 @@ class Files:
         self.missingFiles = {'pos': [], 'cspec': detDict, 'ctime':detDict}
 
     def find_poshist_files(self, data_dir):
+        
         ''' Find a list a of POSHIST files corresponding to input dates '''
         for i in self.days:
             # pos_file = glob(str(data_dir) + slash + i + slash + 'glg_poshist_all_' + i + '*fit')

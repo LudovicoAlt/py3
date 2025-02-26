@@ -31,7 +31,6 @@ class OrbSub():
                              data_dir = opts.data_dir)
         files.find_poshist_files(opts.data_dir)
         print("Running find_files")
-        print(opts.data_dir, files)
         self.regions = regions
         self.files = files
         return self.files.error
