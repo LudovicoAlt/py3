@@ -9,7 +9,6 @@ Downloads CTIME/CSPEC/POSHIST Files
 import argparse
 import ftplib
 import sys
-import os
 from pathlib import Path
 import concurrent
 from concurrent.futures import ThreadPoolExecutor
