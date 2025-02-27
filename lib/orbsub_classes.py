@@ -1,16 +1,9 @@
-import sys
-from glob import glob
-import math
-import platform
-import os
 
-import numpy as np
-import astropy.io.fits as pf
- 
-from lib import fitsUtil
-import lib.util.util as util
-
-from pathlib import Path
+import  os
+import  numpy   as np
+from    glob    import glob
+from    lib     import fitsUtil
+import  lib.util.util as util
 
 class Regions:
     '''
@@ -39,8 +32,6 @@ class Regions:
                     index = range
                 else:
                     index = range+i
-                #TODO This clearly onlt takes the orbit offset, ie 30 takes 30 orbits in the future and past, it doesnt consider
-                # all the orbits in between , which makes sense as some of those will include the SAA
                 temp = np.array([zero_met + tmin + signs[range] * shifts[i], 
                       zero_met + tmax + signs[range] * shifts[i]])
                 ranges.update({index: temp}) 

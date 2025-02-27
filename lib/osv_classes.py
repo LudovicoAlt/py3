@@ -37,282 +37,457 @@ class OSV_Instance:
     def delete(self):
         if self.gui:
             self.gui.delete()
-    def runOrbSub(self, flag_nogui = False):
-        self.orbsub = orbsub.OrbSub(self.opts)
-        mes = 'Running OrbSub Code:'
-        mes = ' Finding Files...'
-        # Locate Files
-        self.orbsub.find_files()
-        if self.orbsub.files.error:
-            # If there was an error with finding the files let the user know. 
-            if self.gui.log:
-                self.gui.log.update(self.orbsub.files.errMes)            
-                downloadData = self.gui.YesNoMes(genDataMissingMessage(self.orbsub.files.missingFiles, ),
-                                    'Data Files not found',
-                                    style =  wx.YES_NO|wx.ICON_ERROR|wx.YES_DEFAULT)
-                if downloadData:
-                    # create downloader instance 
-                    downloader = lib.ftp.Downloader(self.orbsub.files.missingFiles, self.opts.spec_type)
+    def runOrbSub(self, flag_nogui=False):
+        """
+        Run the orbital subtraction analysis.
+        
+        This method manages the full workflow:
+        1. Finding files
+        2. Recalculating orbit (optional)
+        3. Getting GTI and occultation steps
+        4. Performing orbital subtraction
+        5. Initializing data display
+        
+        Args:
+            flag_nogui (bool): If True, run without GUI feedback
+        """
+        try:
+            # Initialize orbital subtraction object
+            self.orbsub = orbsub.OrbSub(self.opts)
+            
+            # Step 1: Find necessary files
+            self.orbsub.find_files()
+            
+            # Handle missing files
+            if self.orbsub.files.error:
+                return self._handle_missing_files()
+            elif self.gui and self.gui.log:
+                self.gui.log.update(self.orbsub.files.__str__())
+                
+            # Step 2: Recalculate orbit if requested
+            if self.opts.reCalcOrbit and not self._recalculate_orbit():
+                return
+                
+            # Step 3: Calculate geometry (GTI and occultation steps)
+            if self.opts.doGeom and not self._calculate_geometry():
+                return
+                
+            # Step 4: Perform orbital subtraction
+            if not self._perform_orbital_subtraction():
+                return
+                
+            # Step 5: Initialize data display if GUI is available
+            if self.gui:
+                self.gui.InitData(self.orbsub)
+                
+        except Exception as e:
+            import traceback
+            error_msg = f"Unexpected error: {str(e)}\n{traceback.format_exc()}"
+            if self.gui and self.gui.log:
+                self.gui.log.update(error_msg)
+                self.gui.ErrorMes("An unexpected error occurred. Check log for details.",
+                                "Error in Orbital Subtraction")
+            else:
+                print(error_msg)
+            
+    def _handle_missing_files(self):
+        """Handle missing files with appropriate user interaction."""
+        if not self.gui or not self.gui.log:
+            print(self.orbsub.files.errMes)
+            return False
+        
+        # Update log with error message
+        self.gui.log.update(self.orbsub.files.errMes)
+        
+        # Ask user if they want to download missing files
+        message = genDataMissingMessage(self.orbsub.files.missingFiles)
+        downloadData = self.gui.YesNoMes(message, 'Data Files not found',
+                            style=wx.YES_NO|wx.ICON_ERROR|wx.YES_DEFAULT)
+                            
+        if downloadData:
+            # Create downloader instance
+            downloader = lib.ftp.Downloader(self.orbsub.files.missingFiles, self.opts.spec_type)
+            
+            # Generate Python download script instead of shell script
+            try:
+                # If createPythonDownloadScript method exists, use it
+                if hasattr(downloader, 'createPythonDownloadScript'):
+                    downloader.createPythonDownloadScript(self.opts.data_dir)
+                    msg = "Python download script (download.py) saved in current directory"
+                else:
+                    # Fall back to shell script
                     downloader.createDownloadScript(self.opts.data_dir)
                     downloader.save()
-                    mes = self.gui.ErrorMes("Download script saved in current working directory",
-                                    'Download Script',
-                                    style =  wx.OK)
-                else:
-                    self.gui.log.show(self.gui)
-            else:
-                print(self.orbsub.files.errMes)
-            return
+                    msg = "Download script saved in current working directory"
+                    
+                # Show confirmation message (won't close the app)
+                self.gui.ErrorMes(msg, 'Download Script', style=wx.OK)
+            except Exception as e:
+                self.gui.ErrorMes(f"Error creating download script: {str(e)}",
+                                'Download Script Error', style=wx.OK|wx.ICON_ERROR)
         else:
-            self.gui.log.update(self.orbsub.files.__str__())
-        # Recalculate orbit. If the new period is suitably different
-        # from that the current value then orbsub.find_files() will be
-        # called from inside the method. This will not be reflected in the
-        # log - a message will state that it is being recalculated but 
-        # if the files change this will not be stated in the log. This will
-        # have to be fixed at some point.
-        if self.opts.reCalcOrbit:
-            mes = ' Recalculating Period ...'
-            perValid = self.orbsub.calc_period()            
-            if perValid:
-                self.gui.log.update(self.orbsub.perMes)
-            else:
-                self.gui.log.update(self.orbsub.perErrMes)
-                self.gui.ErrorMes('Recalculation of period ran into trouble. Please consult the log for full details',
-                                  'Recalculation of period failed')
-                self.gui.log.show(self.gui)
-                return
-        # Calculate Good Time Intervals, Occultation Steps
-        # Currently get_gti calls poshist.calculate_angles(), It would be
-        # nice if we could call this without necessarily calling get_gti.
-        if self.opts.doGeom:
-            # GTI
-            gtiValid = self.orbsub.get_gti()
-            if gtiValid:
-               self.gui.log.update(self.orbsub.gtiMes)
-            else:
-                self.gui.log.update(self.orbsub.gtiErrMes)
-                self.gui.ErrorMes('Calculation of G.T.I. ran into trouble. Please consult the log for full details',
-                                  'Calculation of G.T.I. failed')
-                self.gui.log.show(self.gui)
-            # Occ Steps
-            occValid = self.orbsub.get_steps()
-            if occValid:
-               self.gui.log.update(self.orbsub.occMes)
-            else:
-                self.gui.log.update(self.orbsub.occErrMes)
-                self.gui.ErrorMes('Calculation of Occultation Steps ran into trouble. Please consult the log for full details',
-                                  'Calculation of Occultation Steps  failed')
-                self.gui.log.show(self.gui)
-        # Get Backgrounds
+            # Show the log with error messages
+            self.gui.log.show(self.gui)
+            
+        return False
+        
+    def _recalculate_orbit(self):
+        """Recalculate orbit period if requested."""
+        if not self.gui or not self.gui.log:
+            return self.orbsub.calc_period()
+            
+        perValid = self.orbsub.calc_period()
+        
+        if perValid:
+            self.gui.log.update(self.orbsub.perMes)
+            return True
+        else:
+            self.gui.log.update(self.orbsub.perErrMes)
+            self.gui.ErrorMes('Recalculation of period ran into trouble. Please consult the log for full details',
+                            'Recalculation of period failed')
+            self.gui.log.show(self.gui)
+            return False
+        
+    def _calculate_geometry(self):
+        """Calculate GTI and occultation steps."""
+        if not self.gui or not self.gui.log:
+            return (self.orbsub.get_gti() and self.orbsub.get_steps())
+            
+        # Calculate GTI
+        gtiValid = self.orbsub.get_gti()
+        if gtiValid:
+            self.gui.log.update(self.orbsub.gtiMes)
+        else:
+            self.gui.log.update(self.orbsub.gtiErrMes)
+            self.gui.ErrorMes('Calculation of G.T.I. ran into trouble. Please consult the log for full details',
+                            'Calculation of G.T.I. failed')
+            self.gui.log.show(self.gui)
+            return False
+        
+        # Calculate occultation steps    
+        occValid = self.orbsub.get_steps()
+        if occValid:
+            self.gui.log.update(self.orbsub.occMes)
+            return True
+        else:
+            self.gui.log.update(self.orbsub.occErrMes)
+            self.gui.ErrorMes('Calculation of Occultation Steps ran into trouble. Please consult the log for full details',
+                            'Calculation of Occultation Steps failed')
+            self.gui.log.show(self.gui)
+            return False
+        
+    def _perform_orbital_subtraction(self):
+        """Perform the orbital subtraction."""
+        if not self.gui or not self.gui.log:
+            return self.orbsub.do_orbsub()
+            
         orbValid = self.orbsub.do_orbsub()
-        if not orbValid:
-                self.gui.log.update(self.orbsub.orbErrMes)
-                self.gui.ErrorMes('Oribital Subtraction ran into trouble. Please consult the log for full details',
-                                  'Oribital Subtraction failed')
-                self.gui.log.show(self.gui)
-
-        # All done - make make display data
-        if self.gui:
-            self.gui.InitData(self.orbsub)
-        # Add a Flag for nogui, where the data is saved in a file (?)
-        # The data is in self.orbsub.data ['b0'] like dictionary
-        # initData of gui_classes extracts all the data so look there
-            
-    def restore(self):
-        if self.gui:
-            self.gui.Show()
-    def dismiss(self):
-        if self.gui:
-            self.gui.Hide()
-            
+        if orbValid:
+            return True
+        else:
+            self.gui.log.update(self.orbsub.orbErrMes)
+            self.gui.ErrorMes('Orbital Subtraction ran into trouble. Please consult the log for full details',
+                            'Orbital Subtraction failed')
+            self.gui.log.show(self.gui)
+            return False
+    
 class OptDialog(wx.Dialog):
     '''
-    Runtime Option Selection Dialog
+    Runtime Option Selection Dialog - Cross-Platform Implementation
     '''
     def __init__(self, parent, opts, *args, **kwargs):
+        # Set a better default size that works across platforms
+        if 'size' not in kwargs:
+            kwargs['size'] = wx.Size(400, -1)
+        
+        # Add style for resizable dialog
+        if 'style' not in kwargs:
+            kwargs['style'] = wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER
+        else:
+            kwargs['style'] |= wx.RESIZE_BORDER
+
         wx.Dialog.__init__(self, parent, *args, **kwargs)
-        # The code may have been run before - therefore we check if opts is
-        # already defined - this could be useful if user wanted to change dets
-        # whilst maintaining the same offset, tzero, etc...
+        
+        # Set up options object
         if not opts:
             self.opts = options.OSV_Args()
         else:
             self.opts = opts
+            
         self.InitUI()
         self.InitBindings()
         self.InitVals()
+        
+        # Center the dialog on parent
         self.Centre()
+        
+        # Set a minimum size to prevent controls from being squished
+        self.SetMinSize(wx.Size(380, -1))
+
     def InitUI(self):
         '''
-        Layout the controls
+        Layout the controls with proper cross-platform support
         '''
+        # Create the main panel which will contain all controls
+        panel = wx.Panel(self)
         
-        vsizer = wx.BoxSizer(wx.VERTICAL)
-        # Make the labels/buttons & set defaults
-        #self.panel = panel = wx.Panel(self)
+        # Main vertical sizer for all content
+        main_sizer = wx.BoxSizer(wx.VERTICAL)
+        
+        # -----------------------------------
         # Temporal settings
-        tmpBox = wx.StaticBox(self, -1, 'Temporal Settings', 
-                              )#size = (200, -1))
-        tmpBoxSizer = wx.StaticBoxSizer(tmpBox, wx.VERTICAL)  
-        tzoLbl = wx.StaticText(self, label="tZero (MET):",)        
+        # -----------------------------------
+        temp_box = wx.StaticBox(panel, label='Temporal Settings')
+        temp_sizer = wx.StaticBoxSizer(temp_box, wx.VERTICAL)
+        
+        # TZero control
+        tzo_label = wx.StaticText(panel, label="tZero (MET):")
         self.tzoId = wx.NewId()
-        self.tzoTxt = wx.TextCtrl(self, self.tzoId, str(self.opts.tzero), size = (200, -1),
-                                   validator = wx_classes.FltRangeValidator(eLabel = 'tZero', min_ = gbmConsts.minMet, max_ = gbmConsts.maxMet, ))
-        tngLbl = wx.StaticText(self, label = "Negative offset (s):")
+        self.tzoTxt = wx.TextCtrl(
+            panel, 
+            id=self.tzoId,
+            value=str(self.opts.tzero),
+            validator=wx_classes.FltRangeValidator(
+                eLabel='tZero', 
+                min_=gbmConsts.minMet, 
+                max_=gbmConsts.maxMet
+            )
+        )
+        
+        # Date/Time control 
+        date_label = wx.StaticText(panel, label="Or enter date (YYYY-MM-DD HH:MM:SS.fff):")
+        self.dateId = wx.NewId()
+        self.dateTxt = wx.TextCtrl(panel, id=self.dateId)
+
+        # Create a horizontal sizer for the date control with a Convert button
+        date_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        date_sizer.Add(self.dateTxt, 1, wx.EXPAND|wx.RIGHT, 5)
+        self.dateBtn = wx.Button(panel, label="Convert", size=wx.Size(70, -1))
+        date_sizer.Add(self.dateBtn, 0)
+
+        temp_sizer.Add(date_label, 0, wx.LEFT|wx.TOP|wx.RIGHT, 5)
+        temp_sizer.Add(date_sizer, 0, wx.EXPAND|wx.LEFT|wx.RIGHT|wx.BOTTOM, 5)
+
+        # Negative offset control
+        tng_label = wx.StaticText(panel, label="Negative offset (s):")
         self.tngId = wx.NewId()
-        self.tngTxt = wx.TextCtrl(self, self.tngId, str(self.opts.tRange[0]),
-                                  validator = wx_classes.FltRangeValidator(eLabel = 'Negative Offset', negAllowed = True))
-        tpsLbl = wx.StaticText(self, label = "Positive offset (s):")
-        self.tpsId = wx.NewId()        
-        self.tpsTxt = wx.TextCtrl(self, self.tpsId, str(self.opts.tRange[1]),
-                                  validator = wx_classes.FltRangeValidator(eLabel = 'Positive Offset', negAllowed = True))
-        tmpBoxSizer.Add(tzoLbl, 0,wx.ALL, 0)
-        tmpBoxSizer.Add(self.tzoTxt, 0, wx.ALL, 2)
-        tmpBoxSizer.Add(tngLbl, 0, wx.ALL, 0)
-        tmpBoxSizer.Add(self.tngTxt, 0, wx.ALL, 2)
-        tmpBoxSizer.Add(tpsLbl, 0, wx.ALL, 0)
-        tmpBoxSizer.Add(self.tpsTxt,0, wx.ALL, 2)
-        # Data Directory 
-        dirBox = wx.StaticBox(self, -1, 'Data Directory',)# size = (00, -1))
-        dirBoxSizer = wx.StaticBoxSizer(dirBox, wx.VERTICAL)
-        self.dirTxt = wx.TextCtrl(self, -1, str(self.opts.data_dir),
-                                 style = wx.TE_READONLY,)# size =(400, -1))
-        dirBoxSizer.Add(self.dirTxt, 0, wx.EXPAND, 5)
-        # Data Type Settings: spec type & detectors
-        spcBox = wx.StaticBox(self, -1, 'Data Options',)# size = (200, -1))
-        spcBoxSizer = wx.StaticBoxSizer(spcBox, wx.VERTICAL)
-        self.cspBtn = wx.RadioButton(self, -1, 'CSPEC')
-        self.ctmBtn = wx.RadioButton(self, -1, 'CTIME')
+        self.tngTxt = wx.TextCtrl(
+            panel, 
+            id=self.tngId,
+            value=str(self.opts.tRange[0]),
+            validator=wx_classes.FltRangeValidator(
+                eLabel='Negative Offset', 
+                negAllowed=True
+            )
+        )
+        
+        # Positive offset control
+        tps_label = wx.StaticText(panel, label="Positive offset (s):")
+        self.tpsId = wx.NewId()
+        self.tpsTxt = wx.TextCtrl(
+            panel, 
+            id=self.tpsId,
+            value=str(self.opts.tRange[1]),
+            validator=wx_classes.FltRangeValidator(
+                eLabel='Positive Offset',
+                negAllowed=True
+            )
+        )
+        
+        # Add controls to the temporal sizer with consistent spacing
+        for label, ctrl in [(tzo_label, self.tzoTxt), 
+                           (tng_label, self.tngTxt), 
+                           (tps_label, self.tpsTxt)]:
+            temp_sizer.Add(label, 0, wx.LEFT|wx.TOP|wx.RIGHT, 5)
+            temp_sizer.Add(ctrl, 0, wx.EXPAND|wx.LEFT|wx.RIGHT|wx.BOTTOM, 5)
+            
+        # -----------------------------------
+        # Data Directory
+        # -----------------------------------
+        dir_box = wx.StaticBox(panel, label='Data Directory')
+        dir_sizer = wx.StaticBoxSizer(dir_box, wx.VERTICAL)
+        
+        self.dirTxt = wx.TextCtrl(
+            panel, 
+            value=str(self.opts.data_dir),
+            style=wx.TE_READONLY
+        )
+        
+        dir_sizer.Add(self.dirTxt, 0, wx.EXPAND|wx.ALL, 5)
+        
+        # -----------------------------------
+        # Data Type Settings
+        # -----------------------------------
+        data_box = wx.StaticBox(panel, label='Data Options')
+        data_sizer = wx.StaticBoxSizer(data_box, wx.VERTICAL)
+        
+        # Radio button group for data type
+        radio_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.cspBtn = wx.RadioButton(panel, label='CSPEC')
+        self.ctmBtn = wx.RadioButton(panel, label='CTIME')
+        
         if self.opts.spec_type == 'CSPEC':
             self.cspBtn.SetValue(True)
-        elif self.opts.spec_type == 'CTIME':
+        else:
             self.ctmBtn.SetValue(True)
-        self.detBtn = wx.Button(self, label = "Detector Selection")                  
-        spcBoxSizer.Add(self.cspBtn)
-        spcBoxSizer.Add(self.ctmBtn)
-        spcBoxSizer.Add(self.detBtn, 0, wx.ALL, 0)
-        # Offset box
-        offBox = wx.StaticBox(self, -1, 'Background Regions',
-                              size = (200, -1))
-        offBoxSizer = wx.StaticBoxSizer(offBox, wx.VERTICAL)
-        offTxtLbl = wx.StaticText(self, 
-                                    label = "# orbits offset (space separated)")
-        offTxtMes = " ".join(str(i) for i in self.opts.offset)
+            
+        radio_sizer.Add(self.cspBtn, 0, wx.RIGHT, 15)
+        radio_sizer.Add(self.ctmBtn, 0)
+        
+        # Detector selection button
+        self.detBtn = wx.Button(panel, label="Detector Selection")
+        
+        data_sizer.Add(radio_sizer, 0, wx.ALL, 5)
+        data_sizer.Add(self.detBtn, 0, wx.EXPAND|wx.ALL, 5)
+        
+        # -----------------------------------
+        # Background Regions
+        # -----------------------------------
+        orbit_box = wx.StaticBox(panel, label='Background Regions')
+        orbit_sizer = wx.StaticBoxSizer(orbit_box, wx.VERTICAL)
+        
+        orbit_label = wx.StaticText(panel, label="# orbits offset (space separated)")
+        orbit_value = " ".join(str(i) for i in self.opts.offset)
+        
         self.offId = wx.NewId()
-        self.offTxt = wx.TextCtrl(self, self.offId, offTxtMes,
-                                     validator = wx_classes.IntsRangeValidator(eLabel = 'Orbit Offset'))
-        offBoxSizer.Add(offTxtLbl, 0, wx.ALL, 0)
-        offBoxSizer.Add(self.offTxt, 0, wx.ALL, 0)
-        # Flag Options
-        flgBox = wx.StaticBox(self, -1, 'Source Coords (Optional)',)
-        flgBoxSizer = wx.StaticBoxSizer(flgBox, wx.VERTICAL)
-        # self.gtiId = wx.NewId()
-        # self.gtiBtn = wx.ToggleButton(self, self.gtiId,
-                                    # 'Calculate G.T.I. + Occultation Steps')
+        self.offTxt = wx.TextCtrl(
+            panel,
+            id=self.offId,
+            value=orbit_value,
+            validator=wx_classes.IntsRangeValidator(eLabel='Orbit Offset')
+        )
         
-        raLbl = wx.StaticText(self, label = "Source RA (deg):")
+        orbit_sizer.Add(orbit_label, 0, wx.LEFT|wx.TOP|wx.RIGHT, 5)
+        orbit_sizer.Add(self.offTxt, 0, wx.EXPAND|wx.ALL, 5)
+        
+        # -----------------------------------
+        # Source Coordinates
+        # -----------------------------------
+        src_box = wx.StaticBox(panel, label='Source Coords (Optional)')
+        src_sizer = wx.StaticBoxSizer(src_box, wx.VERTICAL)
+        
+        # Right Ascension
+        ra_label = wx.StaticText(panel, label="Source RA (deg):")
         self.raId = wx.NewId()
-        self.raTxt = wx.TextCtrl(self, self.raId, str(self.opts.coords[0]),
-                                validator = wx_classes.FltRangeValidator(eLabel = 'Right Ascension', 
-                                                                         negAllowed = True,
-                                                                         required = False))
-        # self.raTxt.Enable(False)
-        decLbl = wx.StaticText(self, label = "Source Dec (deg):")
-        self.decId = wx.NewId()
-        self.decTxt = wx.TextCtrl(self, self.decId, str(self.opts.coords[1]),
-                                  validator = wx_classes.FltRangeValidator(eLabel = 'Declination', 
-                                                                           negAllowed = True,
-                                                                           required = False))
-        # self.decTxt.Enable(False)
-        # self.perId = wx.NewId()
-        # self.perBtn = wx.ToggleButton(self, self.perId, 'Re-Calculate Period')
-        # self.bkgId = wx.NewId()
-        # self.bkgBtn = wx.ToggleButton(self, self.bkgId, 'No background')
-        flgBoxSizer.Add(raLbl)
-        flgBoxSizer.Add(self.raTxt)
-        flgBoxSizer.Add(decLbl)
-        flgBoxSizer.Add(self.decTxt)
-        # flgBoxSizer.Add(self.gtiBtn)        
-        # flgBoxSizer.Add(self.perBtn)
-        # flgBoxSizer.Add(self.bkgBtn)
-        # Misc Options
-        mscBox = wx.StaticBox(self, -1, 'Misc. Options', 
-                              size = (200, -1))
-        mscBoxSizer = wx.StaticBoxSizer(mscBox, wx.VERTICAL)
-        nmeLbl = wx.StaticText(self,label = "Output File Stem (Optional)")   
-        self.nmeId = wx.NewId()            
-        self.nmeTxt = wx.TextCtrl(self, self.nmeId, str(self.opts.name), size = (200, -1))
-        mscBoxSizer.Add(nmeLbl, 0, wx.EXPAND, 0)
-        mscBoxSizer.Add(self.nmeTxt, 0, wx.EXPAND, 0)       
-                 
-        # ok/cancel buttons
-        okb = wx.Button(self, wx.ID_OK)
-        cancelb = wx.Button(self, wx.ID_CANCEL)
-        btnsizer = wx.BoxSizer(wx.HORIZONTAL)# 5, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        btnsizer.Add(okb, 0, wx.EXPAND, 0)
-        btnsizer.Add(cancelb, 0, wx.EXPAND, 0)
-
-        #Fill sizer
-        sizerSpacing = 10
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(tmpBoxSizer, 0, wx.ALL|wx.EXPAND, 0)
-        sizer.AddSpacer(sizerSpacing) 
-        sizer.Add(dirBoxSizer, 0, wx.EXPAND, 0)
-        sizer.AddSpacer(sizerSpacing) 
-        sizer.Add(spcBoxSizer, 0, wx.ALL|wx.EXPAND, 0)
-        sizer.AddSpacer(sizerSpacing) 
-        sizer.Add(offBoxSizer, 0, wx.ALL|wx.EXPAND, 0)
-        sizer.AddSpacer(sizerSpacing) 
-        sizer.Add(flgBoxSizer, 0, wx.ALL|wx.EXPAND, 0)
-        sizer.AddSpacer(sizerSpacing) 
-        sizer.Add(mscBoxSizer, 0, wx.ALL|wx.EXPAND, 0)
-        sizer.AddSpacer(sizerSpacing) 
-        sizer.Add(btnsizer, 0, wx.ALL|wx.CENTER, 0)
-        sizer.AddSpacer(sizerSpacing) 
-        #! Awful hack to stop ok/cancel buttons being cutoff
-        #! TODO Fix this god forsaken hack
-        dim = 40
-        if "__WXMSW__" in wx.Platform:
-            dim = 0
-        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, dim)
-        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, dim)
-        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, dim)        
-        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, dim)        
+        self.raTxt = wx.TextCtrl(
+            panel,
+            id=self.raId,
+            value=str(self.opts.coords[0]),
+            validator=wx_classes.FltRangeValidator(
+                eLabel='Right Ascension',
+                negAllowed=True,
+                required=False
+            )
+        )
         
-        # Finally assign the main outer sizer to the panel
-        self.SetSizer(sizer)
-        self.SetInitialSize()
-
+        # Declination
+        dec_label = wx.StaticText(panel, label="Source Dec (deg):")
+        self.decId = wx.NewId()
+        self.decTxt = wx.TextCtrl(
+            panel,
+            id=self.decId,
+            value=str(self.opts.coords[1]),
+            validator=wx_classes.FltRangeValidator(
+                eLabel='Declination',
+                negAllowed=True,
+                required=False
+            )
+        )
+        
+        # Add coordinates to sizer
+        for label, ctrl in [(ra_label, self.raTxt), (dec_label, self.decTxt)]:
+            src_sizer.Add(label, 0, wx.LEFT|wx.TOP|wx.RIGHT, 5)
+            src_sizer.Add(ctrl, 0, wx.EXPAND|wx.LEFT|wx.RIGHT|wx.BOTTOM, 5)
+        
+        # -----------------------------------
+        # Misc Options
+        # -----------------------------------
+        misc_box = wx.StaticBox(panel, label='Misc. Options')
+        misc_sizer = wx.StaticBoxSizer(misc_box, wx.VERTICAL)
+        
+        name_label = wx.StaticText(panel, label="Output File Stem (Optional)")
+        self.nmeId = wx.NewId()
+        self.nmeTxt = wx.TextCtrl(panel, id=self.nmeId, value=str(self.opts.name))
+        
+        misc_sizer.Add(name_label, 0, wx.LEFT|wx.TOP|wx.RIGHT, 5)
+        misc_sizer.Add(self.nmeTxt, 0, wx.EXPAND|wx.ALL, 5)
+        
+        # -----------------------------------
+        # OK/Cancel Buttons (using standard button sizer)
+        # -----------------------------------
+        btn_sizer = wx.StdDialogButtonSizer()
+        ok_button = wx.Button(panel, wx.ID_OK)
+        cancel_button = wx.Button(panel, wx.ID_CANCEL)
+        
+        btn_sizer.AddButton(ok_button)
+        btn_sizer.AddButton(cancel_button)
+        btn_sizer.Realize()
+        
+        # -----------------------------------
+        # Putting it all together
+        # -----------------------------------
+        # Add all sections to the main sizer with consistent spacing
+        sections = [
+            temp_sizer, dir_sizer, data_sizer, 
+            orbit_sizer, src_sizer, misc_sizer
+        ]
+        
+        for section in sections:
+            main_sizer.Add(section, 0, wx.EXPAND|wx.ALL, 5)
+            
+        # Add the buttons at the bottom
+        main_sizer.Add(btn_sizer, 0, wx.EXPAND|wx.ALL, 10)
+        
+        # Set the panel's sizer
+        panel.SetSizer(main_sizer)
+        
+        # Create a frame sizer to properly fit the panel
+        frame_sizer = wx.BoxSizer(wx.VERTICAL)
+        frame_sizer.Add(panel, 1, wx.EXPAND)
+        self.SetSizer(frame_sizer)
+        
+        # Size everything properly
+        panel.Fit()
+        self.Fit()
+        
     def InitBindings(self):
-        ''' Bind methods to buttons '''
+        ''' Bind methods to buttons and control events '''
         self.dirTxt.Bind(wx.EVT_LEFT_DOWN, self.DirectoryDialog)
-        self.Bind(wx.EVT_RADIOBUTTON,self.SpecSelect, self.cspBtn)
-        self.Bind(wx.EVT_RADIOBUTTON,self.SpecSelect, self.ctmBtn)
+        self.Bind(wx.EVT_RADIOBUTTON, self.SpecSelect, self.cspBtn)
+        self.Bind(wx.EVT_RADIOBUTTON, self.SpecSelect, self.ctmBtn)
         self.Bind(wx.EVT_BUTTON, self.DetectorDialog, self.detBtn) 
-        self.Bind(wx.EVT_TEXT, self.TypeFloat, self.tzoTxt) 
-        self.Bind(wx.EVT_TEXT, self.TypeFloat, self.tngTxt) 
-        self.Bind(wx.EVT_TEXT, self.TypeFloat, self.tpsTxt) 
-        self.Bind(wx.EVT_TEXT, self.TypeList, self.offTxt) 
-        self.Bind(wx.EVT_TEXT, self.TypeFloat, self.raTxt) 
-        self.Bind(wx.EVT_TEXT, self.TypeFloat, self.decTxt) 
-        self.Bind(wx.EVT_TEXT, self.TypeString, self.nmeTxt)
-        # self.Bind(wx.EVT_TOGGLEBUTTON, self.TypeBool, self.perBtn) 
-        # self.Bind(wx.EVT_TOGGLEBUTTON, self.TypeBool, self.gtiBtn) 
-        # self.Bind(wx.EVT_TOGGLEBUTTON, self.TypeBool, self.bkgBtn) 
+        self.Bind(wx.EVT_BUTTON, self.ConvertDate, self.dateBtn)
+
+        # Text change events
+        text_bindings = [
+            (self.tzoTxt, self.TypeFloat),
+            (self.tngTxt, self.TypeFloat),
+            (self.tpsTxt, self.TypeFloat),
+            (self.offTxt, self.TypeList),
+            (self.raTxt, self.TypeFloat),
+            (self.decTxt, self.TypeFloat),
+            (self.nmeTxt, self.TypeString)
+        ]
+        
+        for ctrl, handler in text_bindings:
+            self.Bind(wx.EVT_TEXT, handler, ctrl)
              
     def InitVals(self):
-        ''' Set options to starting values '''        
-        
-    def TypeString(self,event):
+        ''' Set options to starting values - placeholder for future functionality '''
+        pass
+    
+    # Helper methods remain the same
+    def TypeString(self, event):
         id = event.GetId()
         if id == self.nmeId:
             self.opts.name = self.nmeTxt.GetValue()
-    def TypeList(self,event):
+            
+    def TypeList(self, event):
         id = event.GetId()
         if id == self.offId:
             self.opts.offset = self.offTxt.GetValue().split()
-    def TypeFloat(self,event):
+            
+    def TypeFloat(self, event):
         id = event.GetId()
         if id == self.tzoId:
             self.opts.tzero = self.tzoTxt.GetValue()
@@ -324,28 +499,20 @@ class OptDialog(wx.Dialog):
             self.opts.coords[0] = self.raTxt.GetValue()
         elif id == self.decId:
             self.opts.coords[1] = self.decTxt.GetValue()
+            
     def TypeBool(self, event):
-        id = event.GetId()
-        # if id == self.perId:
-        #     self.opts.reCalcOrbit =  self.perBtn.GetValue()
-        # elif id == self.bkgId:
-        #     self.opts.doBack = self.bkgBtn.GetValue()
-        # elif id == self.gtiId:
-            # self.GeomSelect(self.gtiBtn.GetValue())
+        # Reserved for future toggle button functionality
+        pass
+        
     def GeomSelect(self, boolVal):
-        if boolVal:
-            # self.raTxt.Enable(True)
-            # self.decTxt.Enable(True)
-            self.opts.doGeom = True
-        else:
-            # self.raTxt.Enable(False)
-            # self.decTxt.Enable(False)
-            self.opts.doGeom = False
-    def SpecSelect(self,event):
+        self.opts.doGeom = boolVal
+        
+    def SpecSelect(self, event):
         if self.cspBtn.GetValue():
             self.opts.spec_type = 'CSPEC'
         elif self.ctmBtn.GetValue():
             self.opts.spec_type = 'CTIME'
+            
     def DirectoryDialog(self, event):
         '''Directory Selection Dialog'''
         dlg = wx.DirDialog(self, "Choose a folder")
@@ -353,186 +520,194 @@ class OptDialog(wx.Dialog):
             self.dirTxt.SetValue(dlg.GetPath())
             self.opts.data_dir = dlg.GetPath()
         dlg.Destroy()
+        
     def DetectorDialog(self, event):
-        dlg = DetDialog(self, self.opts, title = "Detector Selection")
+        dlg = DetDialog(self, self.opts, title="Detector Selection")
         dlg.Centre()
         dets = []
         if dlg.ShowModal() == wx.ID_OK:
-            for i in range(0,14):
+            for i in range(0, 14):
                 label = dlg.labels[i]
-                if dlg.btns[label].GetValue() == True:
+                if dlg.btns[label].GetValue():
                     dets.append(dlg.dets[i])
         self.opts.dets = dets
         dlg.Destroy()
+
+    def ConvertDate(self, event):
+        """Convert date string to MET and update tZero field"""
+        try:
+            # Get date string from text control
+            date_str = self.dateTxt.GetValue().strip()
+            
+            # Make sure the date string matches expected format
+            if not date_str:
+                wx.MessageBox("Please enter a date in the format YYYY-MM-DD HH:MM:SS.fff", 
+                            "Invalid Date Format", wx.ICON_ERROR)
+                return
+                
+            # Try to convert the date string to MET
+            from lib.util import date_to_met
+            met = date_to_met(date_str)
+            
+            # Update the MET field
+            self.tzoTxt.SetValue(str(met))
+            self.opts.tzero = met
+            
+            # Show success message
+            wx.MessageBox(f"Date converted to MET: {met}", 
+                        "Conversion Successful", wx.ICON_INFORMATION)
+                        
+        except ValueError as e:
+            # Show error if the date format is invalid
+            wx.MessageBox(f"Invalid date format: {str(e)}\n\nPlease use YYYY-MM-DD HH:MM:SS.fff", 
+                        "Date Format Error", wx.ICON_ERROR)
+        except Exception as e:
+            # Handle other errors
+            wx.MessageBox(f"Error converting date: {str(e)}", 
+                        "Conversion Error", wx.ICON_ERROR)
         
 class DetDialog(wx.Dialog):
     '''
-    GBM Detector Selection Dialog
+    GBM Detector Selection Dialog - Cross-platform implementation
     '''
-    def __init__(self, parent, opts,*args, **kwargs):
+    def __init__(self, parent, opts, *args, **kwargs):
+        if 'style' not in kwargs:
+            kwargs['style'] = wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER
+        else:
+            kwargs['style'] |= wx.RESIZE_BORDER
+
         wx.Dialog.__init__(self, parent, *args, **kwargs)
-        # Attributes
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        self.btn0 = wx.ToggleButton(self, -1, 'NaI 0', (20,25 ), (-1,25))
-        self.btn1 = wx.ToggleButton(self, -1, 'NaI 1', (20,50 ), (-1,25))
-        self.btn2 = wx.ToggleButton(self, -1, 'NaI 2', (20,75 ), (-1,25))
-        self.btn3 = wx.ToggleButton(self, -1, 'NaI 3', (20,100), (-1,25))
-        self.btn4 = wx.ToggleButton(self, -1, 'NaI 4', (20,125), (-1,25))
-        self.btn5 = wx.ToggleButton(self, -1, 'NaI 5', (20,150), (-1,25))
-        self.btn6 = wx.ToggleButton(self, -1, 'NaI 6', (20,175), (-1,25))
-        self.btn7 = wx.ToggleButton(self, -1, 'NaI 7', (20,200), (-1,25))
-        self.btn8 = wx.ToggleButton(self, -1, 'NaI 8', (20,225), (-1,25))
-        self.btn9 = wx.ToggleButton(self, -1, 'NaI 9', (20,250), (-1,25))
-        self.btna = wx.ToggleButton(self, -1, 'NaI A', (20,275), (-1,25))
-        self.btnb = wx.ToggleButton(self, -1, 'NaI B', (20,300), (-1,25))
-        self.btnA = wx.ToggleButton(self, -1, 'BGO 0', (20,325), (-1,25))
-        self.btnB = wx.ToggleButton(self, -1, 'BGO 1', (20,350), (-1,25))
-        self.btnAll = wx.ToggleButton(self, -1, 'All', (20,350), (-1,25))
-        self.btnNone = wx.ToggleButton(self, -1, 'None', (20,350), (-1,25))
-        self.btns = [self.btn0, self.btn1, self.btn2, self.btn3, self.btn4,
-                     self.btn5, self.btn6, self.btn7, self.btn8, self.btn9,
-                     self.btna, self.btnb, self.btnA, self.btnB]
+        
+        # Define detector information
         self.labels = ['NaI 0', 'NaI 1', 'NaI 2', 'NaI 3', 'NaI 4', 'NaI 5', 
                        'NaI 6', 'NaI 7', 'NaI 8', 'NaI 9', 'NaI A', 'NaI B', 
                        'BGO 0', 'BGO 1']
         self.dets = ['n0', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9',
                      'na', 'nb', 'b0', 'b1']
-        self.btns = {'NaI 0': self.btn0, 'NaI 1': self.btn1, 'NaI 2': self.btn2, 
-                     'NaI 3': self.btn3, 'NaI 4': self.btn4, 'NaI 5': self.btn5,
-                     'NaI 6': self.btn6, 'NaI 7': self.btn7, 'NaI 8': self.btn8,
-                     'NaI 9': self.btn9, 'NaI A': self.btna, 'NaI B': self.btnb,
-                     'BGO 0': self.btnA, 'BGO 1': self.btnB}
-
-        for det in self.dets:
-            if det in opts.dets:
-                det_lbl = self.labels[self.dets.index(det)]
-                self.btns[det_lbl].SetValue(True)
-        # Layout
-        hsizer1 = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer1.Add(self.btn0, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        hsizer1.Add(self.btn6, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        hsizer2 = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer2.Add(self.btn1, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        hsizer2.Add(self.btn7, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        hsizer3 = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer3.Add(self.btn2, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        hsizer3.Add(self.btn8, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        hsizer4 = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer4.Add(self.btn3, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        hsizer4.Add(self.btn9, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)        
-        hsizer5 = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer5.Add(self.btn4, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        hsizer5.Add(self.btna, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        hsizer6 = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer6.Add(self.btn5, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        hsizer6.Add(self.btnb, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        hsizer7 = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer7.Add(self.btnA, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        hsizer7.Add(self.btnB, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        hsizer8 = wx.BoxSizer(wx.HORIZONTAL)
-        hsizer8.Add(self.btnAll, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        hsizer8.Add(self.btnNone, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-
-        #Add Detector butttons to Sizers
-        sizer.Add(hsizer1, 0, wx.EXPAND|wx.ALL, 5)
-        sizer.Add(hsizer2, 0, wx.EXPAND|wx.ALL, 5)
-        sizer.Add(hsizer3, 0, wx.EXPAND|wx.ALL, 5)
-        sizer.Add(hsizer4, 0, wx.EXPAND|wx.ALL, 5)
-        sizer.Add(hsizer5, 0, wx.EXPAND|wx.ALL, 5)
-        sizer.Add(hsizer6, 0, wx.EXPAND|wx.ALL, 5)
-        sizer.Add(hsizer7, 0, wx.EXPAND|wx.ALL, 5)
-        sizer.Add(hsizer8, 0, wx.EXPAND|wx.ALL, 5)
-
-        #Detector Button Bindings
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.getAll, id=self.btnAll.GetId())
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.getNone, id=self.btnNone.GetId())
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.getOne, id=self.btn0.GetId())
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.getOne, id=self.btn1.GetId())
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.getOne, id=self.btn2.GetId())
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.getOne, id=self.btn3.GetId())
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.getOne, id=self.btn4.GetId())
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.getOne, id=self.btn5.GetId())
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.getOne, id=self.btn6.GetId())
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.getOne, id=self.btn7.GetId())
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.getOne, id=self.btn8.GetId())
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.getOne, id=self.btn9.GetId())
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.getOne, id=self.btna.GetId())
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.getOne, id=self.btnb.GetId())
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.getOne, id=self.btnA.GetId())
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.getOne, id=self.btnB.GetId())
-
-        # Add some buttons to the dialog
-        okb = wx.Button(self, wx.ID_OK)
-        #cancelb = wx.Button(self, wx.ID_CANCEL)
-        btnsizer = wx.BoxSizer(wx.HORIZONTAL)
-        btnsizer.Add(okb, 5, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        #btnsizer.Add(cancelb, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        #btnsizer = wx.StdDialogButtonSizer()
-        sizer.Add(btnsizer, 0, wx.EXPAND|wx.ALL, 10)
-        #sizer.Add(btnsizer, 0, wx.ALL|wx.ALIGN_RIGHT, 8)
-        self.SetSizer(sizer)
-        self.SetInitialSize()
-    def getOne(self,event):
+        
+        # Create a main vertical sizer for the dialog
+        main_sizer = wx.BoxSizer(wx.VERTICAL)
+        
+        # Create a grid sizer for the detector toggle buttons - 2 columns
+        grid_sizer = wx.GridSizer(rows=8, cols=2, vgap=5, hgap=10)
+        
+        # Create toggle buttons for each detector
+        self.btns = {}
+        for i, label in enumerate(self.labels):
+            btn = wx.ToggleButton(self, -1, label)
+            self.btns[label] = btn
+            
+            # Set initial state based on selected detectors
+            if self.dets[i] in opts.dets:
+                btn.SetValue(True)
+            
+            # Add to grid sizer
+            grid_sizer.Add(btn, 0, wx.EXPAND)
+            
+            # Bind event handler
+            btn.Bind(wx.EVT_TOGGLEBUTTON, self.getOne)
+        
+        # Add All/None buttons in the last row
+        self.btnAll = wx.ToggleButton(self, -1, 'All')
+        self.btnNone = wx.ToggleButton(self, -1, 'None')
+        
+        # Bind All/None events
+        self.btnAll.Bind(wx.EVT_TOGGLEBUTTON, self.getAll)
+        self.btnNone.Bind(wx.EVT_TOGGLEBUTTON, self.getNone)
+        
+        # Add All/None buttons to grid
+        grid_sizer.Add(self.btnAll, 0, wx.EXPAND)
+        grid_sizer.Add(self.btnNone, 0, wx.EXPAND)
+        
+        # Add grid sizer to main sizer with border
+        main_sizer.Add(grid_sizer, 0, wx.ALL|wx.EXPAND, 10)
+        
+        # Add separator line
+        main_sizer.Add(wx.StaticLine(self), 0, wx.EXPAND|wx.LEFT|wx.RIGHT, 10)
+        
+        # Create standard button sizer for consistent button layout
+        btn_sizer = wx.StdDialogButtonSizer()
+        ok_button = wx.Button(self, wx.ID_OK)
+        btn_sizer.AddButton(ok_button)
+        btn_sizer.Realize()
+        
+        # Add button sizer with padding
+        main_sizer.Add(btn_sizer, 0, wx.ALL|wx.EXPAND, 10)
+        
+        # Set the sizer and fit the dialog to its contents
+        self.SetSizer(main_sizer)
+        self.Fit()
+        self.Centre()
+    
+    def getOne(self, event):
         '''Individual Detector Selected, set None & all buttons to False'''
         self.btnNone.SetValue(False)
         self.btnAll.SetValue(False)
-    def getAll(self,event):
+    
+    def getAll(self, event):
         '''Set All Detectors to True, set None button to False'''
-        self.btn0.SetValue(True)
-        self.btn1.SetValue(True)
-        self.btn2.SetValue(True)
-        self.btn3.SetValue(True)
-        self.btn4.SetValue(True)
-        self.btn5.SetValue(True)
-        self.btn6.SetValue(True)
-        self.btn7.SetValue(True)
-        self.btn8.SetValue(True)
-        self.btn9.SetValue(True)
-        self.btna.SetValue(True)
-        self.btnb.SetValue(True)
-        self.btnA.SetValue(True)
-        self.btnB.SetValue(True)
+        for label in self.labels:
+            self.btns[label].SetValue(True)
         self.btnNone.SetValue(False)
-    def getNone(self,event):
-        '''Set All Decectors to False, set All button to False'''
-        self.btn0.SetValue(False)
-        self.btn1.SetValue(False)
-        self.btn2.SetValue(False)
-        self.btn3.SetValue(False)
-        self.btn4.SetValue(False)
-        self.btn5.SetValue(False)
-        self.btn6.SetValue(False)
-        self.btn7.SetValue(False)
-        self.btn8.SetValue(False)
-        self.btn9.SetValue(False)
-        self.btna.SetValue(False)
-        self.btnb.SetValue(False)
-        self.btnA.SetValue(False)
-        self.btnB.SetValue(False)
+    
+    def getNone(self, event):
+        '''Set All Detectors to False, set All button to False'''
+        for label in self.labels:
+            self.btns[label].SetValue(False)
         self.btnAll.SetValue(False)
 
 class RebinDialog(wx.Dialog):
     def __init__(self, parent, *args, **kwargs):
+        if 'style' not in kwargs:
+            kwargs['style'] = wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER
+        else:
+            kwargs['style'] |= wx.RESIZE_BORDER            
+
         wx.Dialog.__init__(self, parent, *args, **kwargs)
-        tmpBox = wx.StaticBox(self, -1, 'Resolution', 
-                              )#size = (200, -1))
+        
+        # Create panel to contain all controls
+        panel = wx.Panel(self)
+        
+        # Create box sizers with proper padding
+        tmpBox = wx.StaticBox(panel, label='Resolution')
         tmpBoxSizer = wx.StaticBoxSizer(tmpBox, wx.VERTICAL)  
+        
+        # Create resolution text control with validator
         self.resId = wx.NewId()
-        self.resTxt = wx.TextCtrl(self, self.resId, '', size = (200, -1),
-                                   validator = wx_classes.FltRangeValidator(eLabel = 'resolution',))
+        self.resTxt = wx.TextCtrl(
+            panel, 
+            id=self.resId, 
+            value='',
+            validator=wx_classes.FltRangeValidator(eLabel='resolution')
+        )
         
-        tmpBoxSizer.Add(self.resTxt, 0,wx.ALL, 0)
+        # Add text control with proper padding
+        tmpBoxSizer.Add(self.resTxt, 0, wx.EXPAND|wx.ALL, 5)
         
-        okb = wx.Button(self, wx.ID_OK)
-        cancelb = wx.Button(self, wx.ID_CANCEL)
-        btnsizer = wx.BoxSizer(wx.HORIZONTAL)
-        btnsizer.Add(okb, 5, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
-        btnsizer.Add(cancelb, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 5)
+        # Create standard button sizer for OK/Cancel buttons
+        btn_sizer = wx.StdDialogButtonSizer()
+        ok_button = wx.Button(panel, wx.ID_OK)
+        cancel_button = wx.Button(panel, wx.ID_CANCEL)
+        btn_sizer.AddButton(ok_button)
+        btn_sizer.AddButton(cancel_button)
+        btn_sizer.Realize()
         
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(tmpBoxSizer, 0, wx.ALL|wx.EXPAND, 0)
-        sizer.Add(wx.StaticLine(self), 0, wx.ALL|wx.EXPAND, 5)
-        sizer.Add(btnsizer, 0, wx.ALL|wx.CENTER, 0)
-        # Finally assign the main outer sizer to the panel
-        self.SetSizer(sizer)
-        self.SetInitialSize()
+        # Main vertical sizer for panel
+        main_sizer = wx.BoxSizer(wx.VERTICAL)
+        main_sizer.Add(tmpBoxSizer, 0, wx.EXPAND|wx.ALL, 10)
+        main_sizer.Add(wx.StaticLine(panel), 0, wx.EXPAND|wx.LEFT|wx.RIGHT, 10)
+        main_sizer.Add(btn_sizer, 0, wx.EXPAND|wx.ALL, 10)
+        
+        # Set the panel's sizer
+        panel.SetSizer(main_sizer)
+        
+        # Frame sizer to contain the panel
+        frame_sizer = wx.BoxSizer(wx.VERTICAL)
+        frame_sizer.Add(panel, 1, wx.EXPAND)
+        self.SetSizer(frame_sizer)
+        
+        # Size everything properly
+        panel.Fit()
+        self.Fit()
+        self.Centre()
+
