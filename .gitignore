@@ -1,10 +1,10 @@
 osv_dl_script.sh
 # Kindly borrowed from https://github.com/github/gitignore/blob/main/Python.gitignore
 # Byte-compiled / optimized / DLL files
-**/__pycache__/
+*__pycache__/
+*__pycache__*
 *.py[cod]
 *$py.class
-lib\__pycache__
 #I want to ignore any files that have 6 numbers
 [0-9][0-9][0-9][0-9][0-9][0-9]
 test.ipynb
