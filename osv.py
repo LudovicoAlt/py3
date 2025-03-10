@@ -76,6 +76,23 @@ if __name__ == '__main__':
         elif args[0].lower() == "getconfig":
             setup.getConfig(printflag=True)
             exit()            
+        elif args[0].lower() == "convert":
+            if len(args) > 1:
+                try:
+                    from lib.util.util import date_to_met
+                    met = date_to_met(args[1])
+                    print(f"Date: {args[1]}")
+                    print(f"Fermi MET: {met}")
+                except ValueError as e:
+                    print(f"Error: {e}")
+            else:
+                print("Usage: python osv.py convert YYYY-MM-DD [hh:mm:ss[.f]]")
+                print("Examples:")
+                print("  python osv.py convert 2023-05-15")
+                print("  python osv.py convert \"2023-05-15 14:30\"")
+                print("  python osv.py convert \"2023-05-15 14:30:22\"")
+                print("  python osv.py convert \"2023-05-15 14:30:22.500\"")
+            exit()
         elif "ver" in args[0].lower():
             print(("osv v%s"%__version__))
             exit()

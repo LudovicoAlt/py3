@@ -203,8 +203,7 @@ def doCheckDeps():
     else:
         print("Done - all required modules found")
     return
-
-    
+  
 def doHelp():
     ''' '''
     print("help:")

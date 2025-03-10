@@ -749,18 +749,41 @@ def met_grb(tzero, day = False):
         name = yr + mt + dd + ttt
     return name
 
-def date_to_met( date ):
+def date_to_met(date):
     '''
-    Convert a date in the form of YYYY-MM-DD hh:mm:ss.f to Fermi MET
+    Convert a date to Fermi MET
+    
+    Accepted formats:
+    - YYYY-MM-DD
+    - YYYY-MM-DD hh:mm
+    - YYYY-MM-DD hh:mm:ss
+    - YYYY-MM-DD hh:mm:ss.f
+    
+    Missing time components default to 0
     '''
-
-    data_start = "2001:01:01 00:00:00" # start of MET
-    data_end = date # "2024-10-13 22:27:42.035" # desired event to obtain t0
-
+    data_start = "2001:01:01 00:00:00"  # start of MET
+    data_end = date
+    
     date_start = datetime.datetime.strptime(data_start, '%Y:%m:%d %H:%M:%S')
-    date_end = datetime.datetime.strptime(data_end, '%Y-%m-%d %H:%M:%S.%f')
-
-    #calculate the difference in seconds
+    
+    # Try different formats based on the input
+    formats = [
+        '%Y-%m-%d',
+        '%Y-%m-%d %H:%M',
+        '%Y-%m-%d %H:%M:%S',
+        '%Y-%m-%d %H:%M:%S.%f'
+    ]
+    
+    for fmt in formats:
+        try:
+            date_end = datetime.datetime.strptime(data_end, fmt)
+            break
+        except ValueError:
+            continue
+    else:
+        raise ValueError(f"Date '{date}' doesn't match any of the accepted formats: YYYY-MM-DD, YYYY-MM-DD hh:mm, YYYY-MM-DD hh:mm:ss, YYYY-MM-DD hh:mm:ss.f")
+    
+    # Calculate the difference in seconds
     delta = date_end - date_start
-
+    
     return delta.total_seconds()
