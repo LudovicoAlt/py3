@@ -1,6 +1,7 @@
 from ftplib import FTP
 import os
 from pathlib import Path
+import urllib.request, urllib.error, urllib.parse
 
 def chdir(directory):
     ''' cd to dir, creating it if it does not exist '''

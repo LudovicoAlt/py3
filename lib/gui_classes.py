@@ -824,122 +824,80 @@ class OrbsubGUI(wx.Frame):
                 leg = ax.legend([l1,l2], ["Source","Background"], loc = 'upper right',
                             prop = {'family': self.pltCfg['font'] , 'size': self.pltCfg['fontsizeLegend'] })
             leg.get_frame().set_alpha(0.5)
-    def plot(self):
-        '''
-        Plot selected data with improved performance.
-        This method should be called after any selection is made.
+    def plot(self, ):
+        ''' 
+        Plot selected data. This method should be called after any selection is made.
         '''
         # Remove any current lines on plot
-        for line_type in ['lines', 'patches', 'vLines', 'gti', 'occ']:
-            self.clearLines(line_type)
-        
+        self.clearLines('lines')
+        self.clearLines('patches')
+        self.clearLines('vLines')
+        self.clearLines('gti')
+        self.clearLines('occ')
         # Get selection masks from lookup
         # Lightcurve selections are applied to counts spectra
         # and spectrum selections are applied to light curve
         lcLu = self._LU[self.curDet]['lc']
         specLu = self._LU[self.curDet]['spec']
-        
-        # Create mask arrays - more efficient than inequality with a magic number
-        self.lcMask = np.ones_like(self.t, dtype=bool)
-        self.specMask = np.ones_like(self.e, dtype=bool)
-        
-        # Process lightcurve selections if any exist
-        if lcLu:
-            # More efficient to start with False mask and build up
-            # rather than inverting the whole array
-            self.lcMask = np.zeros_like(self.t, dtype=bool)
+        # Default - no selections made - select all
+        self.lcMask = self.t != -99999999
+        self.specMask = self.e != -99999999
+        if len(lcLu):
+            # we have selections - first invert the mask array
+            # We can then loop over each selection and create
+            # a mask array which is True for those regions.
+            # This array can be combined with the inverted array
+            # via an or operation. 
+            self.lcMask = ~self.lcMask                
             for i in range(0, len(lcLu), 2):
                 sel = lcLu[i:i+2]
                 tempMask = (self.t > sel[0]) & (self.t < sel[1])
-                self.lcMask |= tempMask
-        
-        # Process spectrum selections if any exist
-        if specLu:
-            self.specMask = np.zeros_like(self.e, dtype=bool)
+                self.lcMask = self.lcMask | tempMask
+        if len(specLu):
+            # Same as for above
+            self.specMask = ~self.specMask                
             for i in range(0, len(specLu), 2):
                 sel = specLu[i:i+2]
                 tempMask = (self.eEdgeMin >= sel[0]) & (self.eEdgeMax <= sel[1])
-                self.specMask |= tempMask
-        
-        # Pre-compute sums for better performance
-        src_sum = self.src[:, self.specMask].sum(1)
-        bkg_sum = self.bkg[:, self.specMask].sum(1)
-        
-        # Draw lightcurve lines
-        self.pltLines['lines'][0].extend(self.axes[0].step(
-            self.t, src_sum / self.srcExp,
-            color=self.pltCfg['srcLine'], where='mid'
-        ))
-        self.pltLines['lines'][0].extend(self.axes[0].step(
-            self.t, bkg_sum / self.bkgExp,
-            color=self.pltCfg['bkgLine'], where='mid'
-        ))
-        
-        # Draw additional background lines if enabled
+                self.specMask = self.specMask | tempMask            
+
+        # Draw new lines - also add them to variable lines so we can remove them later
+        self.pltLines['lines'][0].extend(self.axes[0].step(self.t, self.src[:, self.specMask].sum(1)/ self.srcExp,
+                                         color = self.pltCfg['srcLine'], where = 'mid'))
+        self.pltLines['lines'][0].extend(self.axes[0].step(self.t, self.bkg[:, self.specMask].sum(1)/ self.bkgExp,
+                                         color = self.pltCfg['bkgLine'], where = 'mid'))
         if self.plotAllBackgrounds:
-            # Pre-compute sums for additional backgrounds
-            pre_sum = self.bkgAll['pre'][:, self.specMask].sum(1)
-            pos_sum = self.bkgAll['pos'][:, self.specMask].sum(1)
-            
-            self.pltLines['lines'][0].extend(self.axes[0].step(
-                self.t, pre_sum / self.bkgExpPre,
-                color=self.pltCfg['preCol'], where='mid'
-            ))
-            self.pltLines['lines'][0].extend(self.axes[0].step(
-                self.t, pos_sum / self.bkgExpPos,
-                color=self.pltCfg['posCol'], where='mid'
-            ))
+            self.pltLines['lines'][0].extend(self.axes[0].step(self.t, self.bkgAll['pre'][:, self.specMask].sum(1)/ self.bkgExpPre,
+                                             color = self.pltCfg['preCol'], where = 'mid', ))
+            self.pltLines['lines'][0].extend(self.axes[0].step(self.t, self.bkgAll['pos'][:, self.specMask].sum(1)/ self.bkgExpPos,
+                                             color = self.pltCfg['posCol'], where = 'mid', ))
         
-        # Handle step plotting for energy spectrum with optimized calculations
-        # Create extended energy array for step plotting
-        x = np.concatenate([
-            np.array([self.eEdgeMin[0]]), 
-            self.e, 
-            np.array([self.eEdgeMax[-1]])
-        ])
-        
-        # Calculate source and background spectra
-        src_spec_sum = self.src[self.lcMask, :].sum(0)
-        src_exp_sum = self.srcExp[self.lcMask].sum()
-        
-        if src_exp_sum > 0:  # Avoid division by zero
-            # Calculate normalized source spectrum
-            y = src_spec_sum / self.eExp / src_exp_sum
-            # Extend for step plotting
-            y = np.concatenate([y[:1], y, y[-1:]])
-            
-            # Calculate normalized background spectrum
-            bkg_spec_sum = self.bkg[self.lcMask, :].sum(0)
-            bkg_exp_sum = self.bkgExp[self.lcMask].sum()
-            
-            if bkg_exp_sum > 0:  # Avoid division by zero
-                y2 = bkg_spec_sum / self.eExp / bkg_exp_sum
-                # Extend for step plotting
-                y2 = np.concatenate([y2[:1], y2, y2[-1:]])
-                
-                # Plot energy spectrum
-                self.pltLines['lines'][1].extend(self.axes[1].step(
-                    x, y, color=self.pltCfg['srcLine'], where='mid'
-                ))
-                self.pltLines['lines'][1].extend(self.axes[1].step(
-                    x, y2, color=self.pltCfg['bkgLine'], where='mid'
-                ))
-        
-        # Autoscale limits - check if attribute exists first
-        # Default to True if attribute doesn't exist
-        autoscale = getattr(self.orbsub.opts, "autoscale", True)
-        if autoscale:
+        # Due to the way matplotlib plots step, we need to do a small bit of messing here
+        x = self.e
+        x = np.concatenate((np.array(self.eEdgeMin[:1]),x))
+        x = np.concatenate((x, np.array(self.eEdgeMax[-1:]))) 
+        y = self.src[self.lcMask,:].sum(0)/self.eExp/ self.srcExp[self.lcMask].sum()
+        y = np.concatenate((y[:1] ,y))
+        y = np.concatenate((y ,y[-1:]))
+        y2 = self.bkg[self.lcMask,:].sum(0)/self.eExp/ self.bkgExp[self.lcMask].sum()
+        y2 = np.concatenate((y2[:1] ,y2))
+        y2 = np.concatenate((y2 ,y2[-1:]))
+        self.pltLines['lines'][1].extend(self.axes[1].step(x,y,
+                                         color = self.pltCfg['srcLine'], where = 'mid'))
+        self.pltLines['lines'][1].extend(self.axes[1].step(x,y2,
+                                         color = self.pltCfg['bkgLine'], where = 'mid'))
+        # Autoscale limits
+        self.orbsub.opts.autoscale = True
+        if self.orbsub.opts.autoscale:
             self.doAutoscale()
-        
-        # Hatch selected regions and draw time intervals
+        # Hatch selected regions (if any)
         self.hatchSelections('lc')
         self.hatchSelections('spec')
-        self.plotTI('occ')
+        # Draw time intervals (if any)
+        self.plotTI('occ')        
         self.plotTI('gti')
-        
-        # Update the canvas
+        # Finally, draw the changes            
         self.Draw()
-
     def doAutoscale(self):
         ''' Autoscale graph limits '''
         yMax = max((self.src[:, self.specMask].sum(1)/self.srcExp).max(), (self.bkg[:, self.specMask].sum(1)/self.bkgExp).max())
