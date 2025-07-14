@@ -363,6 +363,10 @@ class OrbsubGUI(wx.Frame):
         self.expM_pii = self.expMenu.Append(-1, "PHAII", "Text", None)
         self.expM_pha = self.expMenu.Append(-1, "PHA", "Text", None)
         self.expM_alc = self.expMenu.Append(-1, "ASCII LC", "Text", None)
+        
+        self.expM_occId = wx.NewId()
+        self.expM_occ = self.expMenu.Append(self.expM_occId, "Occultation Times", "Text", None)
+        
         self.mscM_logId = wx.NewId()
         self.mscM_log = self.mscMenu.Append(self.mscM_logId, "Show Log", "Text", None)
         self.mscM_abt = self.mscMenu.Append(-1, "About", "Text", None)
@@ -461,6 +465,7 @@ class OrbsubGUI(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnExportPHAII, self.expM_pii)
         self.Bind(wx.EVT_MENU, self.OnExportASCLC, self.expM_alc)
         self.Bind(wx.EVT_MENU, self.OnExportPHA, self.expM_pha)
+        self.Bind(wx.EVT_MENU, self.OnExportOccultation, self.expM_occ)
 		# Bind rebin options
         self.Bind(wx.EVT_MENU, self.onRebin, self.rebM_inv )
         self.Bind(wx.EVT_MENU, self.onLogCounts, self.rebM_counts )
@@ -1187,6 +1192,66 @@ class OrbsubGUI(wx.Frame):
         names = self.getOutputName( 'ascii')
         if not len(names): return
         self.orbsub.data[self.curDet].write_ascii(self.orbsub.opts, names = names, lcMask = self.lcMask, specMask = self.specMask)
+    
+    def OnExportOccultation(self, event):
+        '''
+        Export occultation time intervals to a text file
+        '''
+        if not self.orbsub:
+            self.ErrorMes("No data loaded", title="Error")
+            return
+            
+        if not self.orbsub.pos or not self.orbsub.pos.occTI:
+            self.ErrorMes("No occultation data available. Make sure source coordinates are provided.", title="Error")
+            return
+        
+        # Get default filename
+        defaultName = f"glg_osv_occultation_{self.orbsub.opts.name}.txt"
+        
+        # Show file dialog
+        dlg = wx.FileDialog(self, "Export Occultation Times", os.getcwd(), defaultName,
+                           "Text files (*.txt)|*.txt|All files (*.*)|*.*", 
+                           wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
+        
+        if dlg.ShowModal() == wx.ID_OK:
+            filepath = dlg.GetPath()
+            try:
+                self._writeOccultationFile(filepath)
+                wx.MessageBox(f"Occultation times exported successfully to:\n{filepath}", 
+                             "Export Complete", wx.OK | wx.ICON_INFORMATION)
+            except Exception as e:
+                self.ErrorMes(f"Error writing occultation file:\n{str(e)}", title="Export Error")
+        
+        dlg.Destroy()
+    
+    def _writeOccultationFile(self, filepath):
+        '''
+        Write occultation time intervals to a text file
+        '''
+        occTI = self.orbsub.pos.occTI
+        occStart = np.asarray(occTI[0])  # Start times
+        occEnd = np.asarray(occTI[1])    # End times
+        
+        with open(filepath, 'w') as f:
+            # Write header
+            f.write("# Occultation Time Intervals\n")
+            f.write(f"# Source: {self.orbsub.opts.name}\n")
+            f.write(f"# Coordinates: RA={self.orbsub.opts.coords[0]:.6f}, DEC={self.orbsub.opts.coords[1]:.6f}\n")
+            f.write(f"# Time zero (MET): {self.orbsub.opts.tzero:.6f}\n")
+            f.write("# Columns: Start_Time(MET) End_Time(MET) Duration(s) Start_Time(rel_to_tzero) End_Time(rel_to_tzero)\n")
+            f.write("#\n")
+            
+            # Write data
+            for start_met, end_met in zip(occStart, occEnd):
+                duration = end_met - start_met
+                start_rel = start_met - self.orbsub.opts.tzero
+                end_rel = end_met - self.orbsub.opts.tzero
+                
+                f.write(f"{start_met:.6f} {end_met:.6f} {duration:.6f} {start_rel:.6f} {end_rel:.6f}\n")
+            
+            f.write(f"\n# Total occultation intervals: {len(occStart)}\n")
+            f.write(f"# Total occultation time: {np.sum(occEnd - occStart):.6f} seconds\n")
+    
     def getOutputName(self, otype):
         ''' getoutput name for files
         '''
