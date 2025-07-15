@@ -821,9 +821,9 @@ class OrbsubGUI(wx.Frame):
         Plot selected data. This method should be called after any selection is made.
         '''
         # Remove any current lines on plot
-        to_clear = ['lines', 'patches', 'vLines', 'gti', 'occ']
-        for i in to_clear:
+        for i in self.pltLines:
             self.clearLines(i)
+            
         # Get selection masks from lookup
         # Lightcurve selections are applied to counts spectra
         # and spectrum selections are applied to light curve

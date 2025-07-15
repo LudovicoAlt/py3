@@ -202,62 +202,55 @@ def rebin_gbm(x, y, exp, err = [], resolution = [], trange = []):
     #Is x the bin centres or bin edges?
     #Irregardless we need to have edges for error calculation 
     #if user passed an err array
-    if len(x.shape)!=1:
-        #we have bin edges - get bin centres
+    # Determine if x represents bin edges or centers
+    bin_edge = x.ndim != 1
+    
+    if bin_edge:
         x_edges = x
-        bin_edge = True
-        x=(x[:,1]-x[:,0])/2 +x[:,0]
+        x = (x[:, 1] - x[:, 0]) / 2 + x[:, 0]  # bin centers
     else:
-        x_edges=np.column_stack((x-exp/2 ,x+exp/2 ))
-        bin_edge = False
-    
-    if len(trange) == 0: #instead of checking [] check if empty
-        x1=np.arange(x[0],x[-1],resolution)
-        #x1=np.arange(x[0,0],x[-1,1],resolution)
+        x_edges = np.column_stack((x - exp/2, x + exp/2))
+
+    if len(trange) == 0:
+        start, end = x[0], x[-1]
     else:
-        x1=np.arange(trange[0],trange[1],resolution)
+        start, end = trange[0], trange[1]
     
+    x1 = np.arange(start, end, resolution)
+
     #Define new arrays to house rebinned data
-    nchan=y[0,:].size
-    nbin=x1.size
-    y1=np.zeros((nbin,nchan))
+    nchan   =   y.shape[1]
+    nbin    =   x1.size
+    y1      =   np.zeros((nbin, nchan))
     
     # first interpolate exposure
     if bin_edge:
-        binWidth = x_edges[:,1] - x_edges[:,0]        
-        binWidth1 = np.ones(nbin)*resolution
-        exp1 = np.interp(x1,x,exp/binWidth)*binWidth1
+        binWidth    = x_edges[:, 1] - x_edges[:, 0]        
+        binWidth1   = np.ones(nbin) * resolution
+        exp1        = np.interp(x1, x, exp/binWidth) * binWidth1
     else:
         # no quite correct if there is deadtime, but the 
         # best that can be done without bin edges
         exp1 = np.ones(nbin)*resolution
+
+    for i in range(nchan):
+        y1[:,i]=np.interp(x1, x, y[:,i]/exp)*exp1
     
-    # import matplotlib.pyplot as plt
-    # plt.cla() 
-    # plt.plot(x,exp, marker = 's', ls = '-', color = 'g', label = 'native')
-    # plt.plot(x1, binWidth1, marker = 'o', ls = '--', color = 'b', label = 'wrong')
-    # plt.plot(x1, exp1, marker = 'x', ls = '-.', color = 'r', label = 'interp')
-    # plt.legend()
-    # plt.show()
-
-
-    for i in range(0,nchan):
-        y1[:,i]=np.interp(x1,x,y[:,i]/exp)*exp1
-    if len(err)==0: #instead of checking [] check if empty
+    if len(err) == 0: #instead of checking [] check if empty
         #Statistical error
-        err1=np.sqrt(y1)
+        err1 = np.sqrt(y1)
     else:
-        err1=np.zeros((nbin,nchan))
-        for i in range(0,nchan):
-            err1[:,i]=np.interp(x1,x,err[:,i]/exp)*exp1
+        err1 = np.zeros((nbin, nchan))
+        for i in range(nchan):
+            err1[:, i] = np.interp(x1, x, err[:, i]/exp)*exp1
         
     if bin_edge:
         #If user passed bin edges return bin edges, otherwise return bin centres
-        xi=x1 - resolution/2. #(exp1/2)
-        xj=x1 + resolution/2. # (exp1/2)
-        x1=np.column_stack((xi,xj))
+        xi = x1 - resolution/2. #(exp1/2)
+        xj = x1 + resolution/2. # (exp1/2)
+        x1 = np.column_stack((xi, xj))
 
-    return x1,y1,exp1,err1
+    return x1, y1, exp1, err1
 
 def calcLogBins(minBin, maxBin, nBin):
     '''
