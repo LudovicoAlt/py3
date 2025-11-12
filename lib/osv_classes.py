@@ -110,16 +110,10 @@ class OSV_Instance:
             
             # Generate Python download script instead of shell script
             try:
-                # If createPythonDownloadScript method exists, use it
-                if hasattr(downloader, 'createPythonDownloadScript'):
-                    downloader.createPythonDownloadScript(self.opts.data_dir)
-                    msg = "Python download script (download.py) saved in current directory"
-                else:
-                    # Fall back to shell script
-                    downloader.createDownloadScript(self.opts.data_dir)
-                    downloader.save()
-                    msg = "Download script saved in current working directory"
-                    
+
+                downloader.createPythonDownloadScript(self.opts.data_dir)
+                msg = "Python download script (download.py) saved in current directory"
+                
                 # Show confirmation message (won't close the app)
                 self.gui.ErrorMes(msg, 'Download Script', style=wx.OK)
             except Exception as e:

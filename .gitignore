@@ -11,6 +11,8 @@ test.ipynb
 *.pyc
 output.png
 download.py
+TTE/
+.vscode/
 
 # C extensions
 *.so
