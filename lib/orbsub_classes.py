@@ -1,9 +1,11 @@
 
 import  os
-import  numpy   as np
+import  numpy           as np
+import  lib.util.util   as util
 from    glob    import glob
 from    lib     import fitsUtil
-import  lib.util.util as util
+
+from pathlib import Path
 
 class Regions:
     '''
@@ -82,18 +84,26 @@ class Files:
         self.missingFiles = {'pos': [], 'cspec': detDict, 'ctime':detDict}
 
     def find_poshist_files(self, data_dir):
-        
         ''' Find a list a of POSHIST files corresponding to input dates '''
+        
+        # Convert data_dir to Path object
+        data_path = Path(data_dir) if data_dir else Path.cwd()
+        
+        self.pos_files = []
         for i in self.days:
-            # pos_file = glob(str(data_dir) + slash + i + slash + 'glg_poshist_all_' + i + '*fit')
-            pos_file = glob(os.path.join(data_dir,i,'glg_poshist_all_' + i + '*fit'))
-            if i == self.days[0]:
-                self.pos_files = pos_file
-            else:
-                self.pos_files = self.pos_files + pos_file
+            day_dir = data_path / i
+            pos_pattern = f'glg_poshist_all_{i}*fit'
+            pos_file = list(day_dir.glob(pos_pattern))
+            
+            # Convert Path objects to strings for compatibility
+            pos_file = [str(f) for f in pos_file]
+            
+            self.pos_files.extend(pos_file)
+            
             if not len(pos_file):
                 self.missingFiles['pos'] += [i]
-        if self.pos_files == []:
+                
+        if not self.pos_files:
             #No pos files found
             self.pos_files = None
             self.error = True
@@ -104,50 +114,78 @@ class Files:
             self.errMes += "*** Unequal number of days and poshist files\n"
             self.errMes += "*** %s \n" %self.days
             self.errMes += "*** %s \n" %self.pos_files
+
     def find_pha_files(self, detectors, spec_type = 'ctime', data_dir = ''):
         '''
         Find a list a of PHA files corresponding to input dates & detectors
         Result is stored in a dictionary
         
         '''
+        
+        # Convert data_dir to Path object
+        data_path = Path(data_dir) if data_dir else Path.cwd()
+        
         for j in detectors:
+            pha_file_list = []
             for i in self.days:
-                # pha_file_string = (str(data_dir) + slash + i + slash + 'glg_' + spec_type.lower() + '_' + j + '_' + i + '*pha')
-                pha_file_string = os.path.join(data_dir, i,'glg_' + spec_type.lower() + '_' + j + '_' + i + '*pha')
-                pha_file = glob(pha_file_string)
-                if i == self.days[0]:
-                    pha_file_list = pha_file
-                else:
-                    pha_file_list = pha_file_list + pha_file
+                # Construct the file pattern using Path
+                day_dir = data_path / i
+                pha_pattern = f'glg_{spec_type.lower()}_{j}_{i}*pha'
+                pha_file = list(day_dir.glob(pha_pattern))
+                
+                # Convert Path objects to strings for compatibility
+                pha_file = [str(f) for f in pha_file]
+                
+                pha_file_list.extend(pha_file)
+                
                 # pha file not found
                 if not len(pha_file):
                     self.missingFiles[spec_type.lower()][i].append(j)
-            if len(pha_file_list) != len (self.days):
+                    
+            if len(pha_file_list) != len(self.days):
                 self.error = True
                 self.errMes += "*** PHA Files missing for %s\n" %j
                 self.errMes += "*** %s \n" %self.days
                 self.errMes += "*** %s \n" %pha_file_list
+                
             if j == detectors[0]:
                 pha_files = {j:pha_file_list}
             else:
                 pha_files[j] = pha_file_list
+                
         self.pha_files = pha_files
-
+    
     def __str__(self):
-        message = '\n<Begin Files>\n'
-        message = message + "Days:"+"\n"
+        '''String representation of Files object for printing'''
+        output = "<Begin Files>\n"
+        output += "Days:\n"
         for i in self.days:
-            message = message + "  " + i + "\n"
-        message = message + "POSHIST Files:" + "\n"
-        for i in self.pos_files:
-            message = message + "  " + i + "\n"
-        message = message + "PHA Files:" + "\n"
-        for i in self.pha_files:
-            message = message + "  " + i + ":\n"
-            for j in self.pha_files[i]:
-                message = message + "       " + j + "\n"
-        message += '<End Files>\n\n'                
-        return message
+            output += "  %s\n" % i
+        
+        output += "POSHIST Files:\n"
+        # Handle None case
+        if self.pos_files is None:
+            output += "  None found\n"
+        else:
+            for i in self.pos_files:
+                output += "  %s\n" % i
+        
+        output += "PHA Files:\n"
+        # Handle None or empty pha_files
+        if not self.pha_files:
+            output += "  None found\n"
+        else:
+            for det in self.pha_files:
+                output += "  %s:\n" % det
+                # Handle None or empty list for each detector
+                if self.pha_files[det] is None or not self.pha_files[det]:
+                    output += "       None found\n"
+                else:
+                    for f in self.pha_files[det]:
+                        output += "       %s\n" % f
+        
+        output += "<End Files>"
+        return output
 
 class Poshist_data:
     def __init__(self,pos_files):

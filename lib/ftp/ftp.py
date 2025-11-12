@@ -37,7 +37,7 @@ class Downloader:
             self.cspec = True
         self.files = files
         self.originalDirectory = os.getcwd()
-
+        
     def createPythonDownloadScript(self, dataDirectory):
         '''
         Creates a Python script (download.py) which can be used to download GBM data
@@ -55,14 +55,20 @@ class Downloader:
             "from pathlib import Path",
             "",
             "def main():",
-            f"    # Original data directory: {dataDirectory}",
-            "    # Get the base directory (where this script is located)",
-            "    base_dir = Path(__file__).resolve().parent",
-            f"    # Path to osv.py (adjust if needed)",
+            "    # Get the script directory",
+            "    script_dir = Path(__file__).resolve().parent",
+            "",
+            f"    # Data directory (can be absolute or relative to script)",
+            f"    data_dir = Path(r'{dataDirectory}')",
+            "    if not data_dir.is_absolute():",
+            "        data_dir = script_dir / data_dir",
+            "    data_dir.mkdir(parents=True, exist_ok=True)",
+            "",
+            f"    # Path to osv.py",
             f"    osv_path = Path(r'{osvPath}')",
             "    if not osv_path.exists():",
             "        print(f'Warning: {osv_path} not found, will try relative to script location')",
-            "        osv_path = base_dir / 'osv.py'",
+            "        osv_path = script_dir / 'osv.py'",
             "        if not osv_path.exists():",
             "            print(f'Error: Could not find osv.py')",
             "            sys.exit(1)",
@@ -95,7 +101,7 @@ class Downloader:
                 
             # Add code to create and change to directory
             script_lines.append(f"    # Process day {day}")
-            script_lines.append(f"    day_dir = base_dir / '{day}'")
+            script_lines.append(f"    day_dir = data_dir / '{day}'")
             script_lines.append("    day_dir.mkdir(exist_ok=True)")
             script_lines.append("    os.chdir(day_dir)")
             
