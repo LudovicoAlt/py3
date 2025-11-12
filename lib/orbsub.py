@@ -27,13 +27,12 @@ class OrbSub():
         #Files is a class which is used to first calculate what days are needed,
         #the corresponding files are then found
         files = Files(opts.tzero, regions, opts.offset)
-        files.find_pha_files(opts.dets, spec_type = opts.spec_type,
-                             data_dir = opts.data_dir)
+        files.find_pha_files(opts.dets, spec_type = opts.spec_type, data_dir = opts.data_dir)
         files.find_poshist_files(opts.data_dir)
-        print("Running find_files")
         self.regions = regions
         self.files = files
         return self.files.error
+    
     def calc_period(self):
         ''' 
         Calculate period of fermi using relevant poshist files, then do 

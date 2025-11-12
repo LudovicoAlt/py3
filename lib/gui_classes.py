@@ -3,8 +3,11 @@ import sys
 import time
 import platform
 import pickle
+from collections import defaultdict
+from functools import lru_cache
 
 import wx
+from wx.adv import AboutDialogInfo, AboutBox
 import matplotlib
 #matplotlib.use('WXAgg')
 matplotlib.rcParams['backend'] = 'WXAgg' #!from use to manual, safer
@@ -22,6 +25,7 @@ from lib.config.plotConfig import getPltCfg
 from lib.config.lookupConfig import getLUCfg
 
 from . import OrbsubExtras as extras
+
 
 class Logger:
     '''
@@ -142,7 +146,6 @@ class GUI_txtFrame(wx.Frame):
         ''' close instance '''
         self.Close()
 
-
 class GUI_showConfig(wx.Frame):
 
     '''
@@ -216,13 +219,14 @@ class OrbsubGUI(wx.Frame):
     '''
     def __init__(self, *args, **kwargs):
         # pop plotDimensions from kwargs if present
-        self.plotDimensions = kwargs.pop('plotDimensions',[(1,1)])
+        self.plotDimensions = kwargs.pop('plotDimensions', [(1, 1)])
         super(OrbsubGUI, self).__init__(*args, **kwargs)
         self.InitVar()
         self.InitUI()
         self.InitBindings()
         self.Centre() 
         self.Show()
+    
     def InitVar(self):
         ''' setup variables '''
         # Start logger
@@ -234,14 +238,15 @@ class OrbsubGUI(wx.Frame):
         # pltLines - this variable is used to store the data that is plotted - this
         # means we can delete from the plot when change detectors. For convenience
         # it can be accessed by lines, vlines, patches, occ and gti
-        self.pltLines = {}
-        lines = {'lines': {0:[], 1:[]}}
-        patches = {'patches': {0:[], 1:[]}}
-        vLines = {'vLines': {0:[], 1:[]}}
-        occ = {'occ': {0:[],}}
-        gti = {'gti': {0:[],}}
-        for i in [lines, patches, vLines, occ, gti]:
-            self.pltLines.update(i)
+
+        self.pltLines = {
+            'lines'     : defaultdict(list),
+            'patches'   : defaultdict(list),
+            'vLines'    : defaultdict(list),
+            'occ'       : defaultdict(list),
+            'gti'       : defaultdict(list)
+        }
+        
         self.pltCfg = getPltCfg()
         self.selectId = False
         self._pltSelections = {}
@@ -254,8 +259,13 @@ class OrbsubGUI(wx.Frame):
         self.bkgSubLC = False
         self.plotResiduals = False
 
+        self.common_args = {
+            "fontname": self.pltCfg['font'],
+            "fontsize": self.pltCfg['fontsize']}
+
     def InitUI(self):
         ''' setup user interface '''
+
         # Figure & canvas
         self.figure = Figure((8.0, 6.0), dpi = 100)
         self.canvas = FigureCanvas(self, -1, self.figure)
@@ -274,27 +284,23 @@ class OrbsubGUI(wx.Frame):
         self.axes[1].set_xscale('log')
         self.axes[1].set_yscale('log')
         # Do labels
-        self.axes[0].set_xlabel('Time (s)', fontname = self.pltCfg['font'],
-                                fontsize = self.pltCfg['fontsize'])
-        self.axes[0].set_ylabel('Counts/s', fontname = self.pltCfg['font'],
-                                fontsize = self.pltCfg['fontsize'])
-        self.axes[1].set_xlabel('Energy (keV)', fontname = self.pltCfg['font'],
-                                fontsize = self.pltCfg['fontsize'])
-        self.axes[1].set_ylabel('Counts/s/keV', fontname = self.pltCfg['font'],
-                                fontsize = self.pltCfg['fontsize'])
+        self.axes[0].set_xlabel('Time (s)', **self.common_args)
+        self.axes[0].set_ylabel('Counts/s', **self.common_args)
+        self.axes[1].set_xlabel('Energy (keV)', **self.common_args)
+        self.axes[1].set_ylabel('Counts/s/keV', **self.common_args)
         # Do legends
         self.doLegends()
 
         #ToolBar
-        self.toolbar = CustomToolbar(self.canvas, True)
+        self.toolbar    = NavigationToolbar2WxAgg(self.canvas, True)
         self.toolbar.Realize()
         self.toolbar.Update()
-        self.xposId = wx.NewId()
-        self.yposId = wx.NewId()
-        xposTxt = wx.StaticText(self, label = "X:")
-        yposTxt = wx.StaticText(self, label = "y:")
-        self.xposTxt = wx.TextCtrl(self, self.xposId, '', style = wx.TE_READONLY)
-        self.yposTxt = wx.TextCtrl(self, self.yposId, '', style = wx.TE_READONLY)
+        self.xposId     = wx.NewId()
+        self.yposId     = wx.NewId()
+        xposTxt         = wx.StaticText(self, label = "X:")
+        yposTxt         = wx.StaticText(self, label = "y:")
+        self.xposTxt    = wx.TextCtrl(self, self.xposId, '', style = wx.TE_READONLY)
+        self.yposTxt    = wx.TextCtrl(self, self.yposId, '', style = wx.TE_READONLY)
         self.statusBar = wx.StatusBar(self, -1)
         self.statusBar.SetFieldsCount(1)
         self.SetStatusBar(self.statusBar)        
@@ -302,82 +308,59 @@ class OrbsubGUI(wx.Frame):
         # Sizers: btnBox is a vertical sizer which is used to hold buttons
         #         pltBox is a vertical sizer which holds toolbar & the canvas
         #         guiBox is a horizontal sizer which holds the two sizers
-        self.btnBox = wx.BoxSizer(wx.VERTICAL)
-        self.pltBox = wx.BoxSizer(wx.VERTICAL)
-        self.guiBox = wx.BoxSizer(wx.HORIZONTAL)
+        self.btnBox     = wx.BoxSizer(wx.VERTICAL)
+        self.pltBox     = wx.BoxSizer(wx.VERTICAL)
+        self.guiBox     = wx.BoxSizer(wx.HORIZONTAL)
         self.toolbarBox = wx.BoxSizer(wx.HORIZONTAL)
-        # Buttons: The btnBox contains the following buttons.
-        #       Detectors
-        #       Selection
-        #       Plot
-        #       Rebin
-        #       Export
-        # Each button is bound to an event handler which launches a menu
-        self.detBtn = wx.Button(self, label = 'Detectors')
-        self.selBtn = wx.Button(self, label = 'Select')
-        self.pltBtn = wx.Button(self, label = 'Plot')
-        self.rbnBtn = wx.Button(self, label = 'Rebin')
-        self.expBtn = wx.Button(self, label = 'Export')
-        self.mscBtn = wx.Button(self, label = 'Misc.')
-        # Menus: Each button has an associated menu
-        self.detMenu = FM.FlatMenu(self)
-        self.selMenu = FM.FlatMenu(self)
-        self.pltMenu = FM.FlatMenu(self)
-        self.rbnMenu = FM.FlatMenu(self)
-        self.expMenu = FM.FlatMenu(self)
-        self.mscMenu = FM.FlatMenu(self)
+        
+        # Button definitions
+        button_specs = [
+            ('detBtn', 'Detectors'), ('selBtn', 'Select'), ('pltBtn', 'Plot'),
+            ('rbnBtn', 'Rebin'), ('expBtn', 'Export'), ('mscBtn', 'Misc.')
+        ]
+        
+        self.btns = {}
+        self.menus = {}
+        
+        # Create buttons and menus
+        for attr_name, label in button_specs:
+            button = wx.Button(self, label=label)
+            setattr(self, attr_name, button) # the menus and buttons are called by attr, so for backward compatibility we just do this
+            menu = FM.FlatMenu(self)
+            setattr(self, attr_name.replace('Btn', 'Menu'), menu)
+            self.btns[attr_name] = button
+            self.btnBox.Add(button, 0, wx.RIGHT, 5)
+            self.menus[attr_name] = menu
+
         # Menus continued: defining the individual components of each menu
-        self.detM_selId = wx.NewId()
-        self.detM_forId = wx.NewId()
-        self.detM_bakId = wx.NewId()
-        self.detM_sel = self.detMenu.Append(self.detM_selId, "Select", "Text", None)
-        self.detM_for = self.detMenu.Append(self.detM_forId, "Forward", "Text", None)
-        self.detM_bak = self.detMenu.Append(self.detM_bakId, "Backward", "Text", None)
-        # 
-        self.selM_selId = wx.NewId()
-        self.selM_clrId = wx.NewId()
-        self.selM_sel = self.selMenu.Append(self.selM_selId, "Select", "Text", None)
-        # self.selM_flg = self.selMenu.Append(-1, "Flag Bad", "Text", None)
-        self.selM_clr = self.selMenu.Append(self.selM_clrId, "Clear", "Text", None)
-        self.selM_svs = self.selMenu.Append(-1, "Save selections", "Text", None)
-        self.selM_lds = self.selMenu.Append(-1, "Load selections", "Text", None)
-        # self.pltM_inv = self.pltMenu.Append(-1, "Invert Colour", "Text", None)
-        # self.pltM_tgf = self.pltMenu.Append(-1, "Toggle Fills", "Text", None)
-        self.pltM_angId = wx.NewId()
-        self.pltM_ptgId = wx.NewId()
-        self.pltM_bkgId = wx.NewId()
-        self.pltM_lcId =  wx.NewId()
-        self.pltM_resId = wx.NewId()
-
-        self.pltM_ang = self.pltMenu.Append(self.pltM_angId, "Plot Detector Angles", "Text", None)
-        self.pltM_ptg = self.pltMenu.Append(self.pltM_ptgId, "Plot S/C Pointing", "Text", None)
-        self.pltM_bkg = self.pltMenu.Append(self.pltM_bkgId, "Plot backgrounds separately", "Text", None)
-        self.pltM_lc = self.pltMenu.Append(self.pltM_lcId, "Plot background subtracted LC", "Text", None) 
-        self.pltM_res = self.pltMenu.Append(self.pltM_resId, "Plot Residuals of signal - background", "Test", None)
-
-        self.rebM_inv = self.rbnMenu.Append(-1, "Temporal", "Text", None)
-        self.rebM_counts = self.rbnMenu.Append(-1, "Log Counts", "Text", None)
-        # self.rebM_inv = self.rbnMenu.Append(-1, "Signal/Noise", "Text", None)
-        # self.rebM_inv = self.rbnMenu.Append(-1, "By Selection", "Text", None)
+        self.detM_sel = self.detMenu.Append(-1, "Select", "Text")
+        self.detM_for = self.detMenu.Append(-1, "Forward", "Text")
+        self.detM_bak = self.detMenu.Append(-1, "Backward", "Text")
         
-        self.expM_pii = self.expMenu.Append(-1, "PHAII", "Text", None)
-        self.expM_pha = self.expMenu.Append(-1, "PHA", "Text", None)
-        self.expM_alc = self.expMenu.Append(-1, "ASCII LC", "Text", None)
-        self.mscM_logId = wx.NewId()
-        self.mscM_log = self.mscMenu.Append(self.mscM_logId, "Show Log", "Text", None)
-        self.mscM_abt = self.mscMenu.Append(-1, "About", "Text", None)
-        # self.mscM_cfg = self.mscMenu.Append(-1, "Config", "Text", None)
-        # for convenience we make two lists, one containing all the buttons & 
-        #       one containing all the menus
-        self.btns = [self.detBtn, self.selBtn, self.pltBtn, self.rbnBtn,
-                     self.expBtn, self.mscBtn,]
-        self.menus = [self.detMenu, self.selMenu, self.pltMenu, self.rbnMenu,
-                      self.expMenu, self.mscMenu,]              
-        # Somewhere around here we can add in the possibility of plugins
+        # Detector menu items
+        self.selM_sel = self.selMenu.Append(-1, "Select", "Text")
+        self.selM_clr = self.selMenu.Append(-1, "Clear", "Text")
+        self.selM_svs = self.selMenu.Append(-1, "Save selections", "Text")
+        self.selM_lds = self.selMenu.Append(-1, "Load selections", "Text")
+
+        self.pltM_ang   = self.pltMenu.Append(-1, "Plot Detector Angles", "Text")
+        self.pltM_ptg   = self.pltMenu.Append(-1, "Plot S/C Pointing", "Text")
+        self.pltM_bkg   = self.pltMenu.Append(-1, "Plot backgrounds separately", "Text")
+        self.pltM_lc    = self.pltMenu.Append(-1, "Plot background subtracted LC", "Text") 
+        self.pltM_res   = self.pltMenu.Append(-1, "Plot Residuals of signal - background", "Test")
+
+        self.rebM_inv       = self.rbnMenu.Append(-1, "Temporal", "Text")
+        self.rebM_counts    = self.rbnMenu.Append(-1, "Log Counts", "Text")
+
+        self.expM_pii = self.expMenu.Append(-1, "PHAII", "Text")
+        self.expM_pha = self.expMenu.Append(-1, "PHA", "Text")
+        self.expM_alc = self.expMenu.Append(-1, "ASCII LC", "Text")
         
-        # Add buttons to btnBox
-        for i in self.btns:
-            self.btnBox.Add(i, 0, wx.RIGHT, 5)
+        self.expM_occ = self.expMenu.Append(-1, "Occultation Times", "Text")
+        
+        self.mscM_log = self.mscMenu.Append(-1, "Show Log", "Text")
+        self.mscM_abt = self.mscMenu.Append(-1, "About", "Text")
+        
         # Add toolbar & position controls to toolbarBox
         self.toolbarBox.Add(self.toolbar)
         self.toolbarBox.Add(xposTxt, 0, wx.RIGHT, 5)
@@ -389,24 +372,24 @@ class OrbsubGUI(wx.Frame):
         # Add toolbar & canvas to pltBox
         self.pltBox.Add(self.toolbarBox, 0, wx.LEFT | wx.EXPAND)
         self.pltBox.Add(self.canvas, 1 ,wx.EXPAND | wx.ALL, 5)
+        
         # Add pltBox and btnBox into guiBox
         self.guiBox.Add(self.btnBox, 0, wx.EXPAND, 5)
         self.guiBox.Add(self.pltBox, 5, wx.ALL| wx.EXPAND, 5)
 
         self.SetSizer(self.guiBox)
         self.SetInitialSize() 
+    
     def ToggleButtons(self, state):
         '''
         Enable or disable all buttons depending on logical value of state
         '''
-        if state:
-            for i in self.btns:
-                i.Enable()
-            self.toolbar.ToggleActive(state)
-        else:
-            for i in self.btns:
-                i.Disable()            
-            self.toolbar.ToggleActive(state)
+        #for i in self.btns:
+        #    i.Enable(state)
+        for btn in self.btns.values():
+            btn.Enable(state)
+        self.toolbar.Enable(state)
+
     def InitBindings(self):
         ''' 
         Setup bindings b/w events and methods. Must be called after InitUI()
@@ -415,8 +398,8 @@ class OrbsubGUI(wx.Frame):
         dismissId = wx.NewId()
         self.Bind(wx.EVT_MENU, self.dismiss, id = dismissId)
         
-        self.Bind(wx.EVT_MENU, self.OnChangeDet, id = self.detM_forId)
-        self.Bind(wx.EVT_MENU, self.OnChangeDet, id = self.detM_bakId)
+        self.Bind(wx.EVT_MENU, self.OnChangeDet, id = self.detM_for.GetId())
+        self.Bind(wx.EVT_MENU, self.OnChangeDet, id = self.detM_bak.GetId())
 
         saveLUId = wx.NewId()
         self.Bind(wx.EVT_MENU, self.OnSaveLU, id = saveLUId)
@@ -425,18 +408,19 @@ class OrbsubGUI(wx.Frame):
         accel_tbl = wx.AcceleratorTable([(wx.ACCEL_CTRL,  ord('d'), dismissId ),
                                             (wx.ACCEL_CTRL,  ord('s'), saveLUId ),
                                             (wx.ACCEL_CTRL,  ord('a'), loadLUId ),
-                                            (wx.ACCEL_CTRL, ord('z'), self.detM_bakId),
-                                            (wx.ACCEL_CTRL, ord('x'), self.detM_forId), 
-                                            (wx.ACCEL_CTRL, ord('v'), self.selM_selId), 
-                                            (wx.ACCEL_CTRL, ord('q'), self.pltM_angId,),
-                                            (wx.ACCEL_CTRL, ord('l'), self.mscM_logId,),
-                                            (wx.ACCEL_CTRL, ord('w'), self.pltM_ptgId, ),
+                                            (wx.ACCEL_CTRL, ord('z'), self.detM_bak.GetId()),
+                                            (wx.ACCEL_CTRL, ord('x'), self.detM_for.GetId()), 
+                                            (wx.ACCEL_CTRL, ord('v'), self.selM_sel.GetId()), 
+                                            (wx.ACCEL_CTRL, ord('q'), self.pltM_ang.GetId()),
+                                            (wx.ACCEL_CTRL, ord('l'), self.mscM_log.GetId()),
+                                            (wx.ACCEL_CTRL, ord('w'), self.pltM_ptg.GetId()),
                                                                                 ])
                                                   
         self.SetAcceleratorTable(accel_tbl)
         # Bind menus to buttons
-        for btn in self.btns:
+        for btn in self.btns.values():
             self.Bind(wx.EVT_BUTTON, self.popUpMenu, btn)
+        
         # Bind methods to menus
         self.Bind(wx.EVT_MENU, self.OnShowLog, self.mscM_log)
         self.Bind(wx.EVT_MENU, self.OnAbout, self.mscM_abt)
@@ -461,6 +445,7 @@ class OrbsubGUI(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnExportPHAII, self.expM_pii)
         self.Bind(wx.EVT_MENU, self.OnExportASCLC, self.expM_alc)
         self.Bind(wx.EVT_MENU, self.OnExportPHA, self.expM_pha)
+        self.Bind(wx.EVT_MENU, self.OnExportOccultation, self.expM_occ)
 		# Bind rebin options
         self.Bind(wx.EVT_MENU, self.onRebin, self.rebM_inv )
         self.Bind(wx.EVT_MENU, self.onLogCounts, self.rebM_counts )
@@ -468,7 +453,9 @@ class OrbsubGUI(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.OnClose)
         #wx.EVT_PAINT(self, self.OnPaint)
         self.canvas.mpl_connect('motion_notify_event', self.OnHoverPoint)
+
     def OnHoverPoint(self, evt):
+        
         if evt.inaxes:
             self.xposTxt.SetValue(str(round(evt.xdata,2)))
             self.yposTxt.SetValue(str(round(evt.ydata,2)))
@@ -477,6 +464,7 @@ class OrbsubGUI(wx.Frame):
                 self.UpdateStatusBar("Click on graph to make selections")
             else:
                self.UpdateStatusBar("Click to finish selections")
+
     def InitData(self, orbsub):
         ''' Take in data '''
         self.orbsub = orbsub
@@ -487,7 +475,7 @@ class OrbsubGUI(wx.Frame):
         # _val is just a boolean keyword we use to 
         # see if the lookups get loaded
         luPath = False
-        _val = False
+        _val    = False
         if self.orbsub.opts.autoLoadLU:
             # AutoLoad lookup
             # print 'auto loading LookUps'
@@ -497,6 +485,7 @@ class OrbsubGUI(wx.Frame):
             self._LU = getLUCfg(self.orbsub.opts.autoLoadLU, luPath,)
         self.IterDet()
         self.doPlotColors()
+
     def IterDet(self, det = False, resolution = False):
         '''
         Iterate currently selected detector. Takes in a detector and extracts 
@@ -516,17 +505,17 @@ class OrbsubGUI(wx.Frame):
             # First extract the lightcurve info
             # This has the form: x,y,exp,err
             # time has the form (xi, xj)
-            t = data.data['src'][0] - self.orbsub.opts.tzero
-            self.srcExp = data.data['src'][2]
-            self.t = (t[:,1] - t[:,0] )/ 2. + t[:,0]
-            self.src = data.data['src'][1]
-            self.srcErr = data.data['src'][3]
-            self.bkg = data.background['all']
-            self.bkgErr = data.background['allerr']      
-            self.bkgAll = data.background      
-            self.bkgExp = data.bkgExp['all']
-            self.bkgExpPre = data.bkgExp['pre']
-            self.bkgExpPos = data.bkgExp['pos']
+            t               = data.data['src'][0] - self.orbsub.opts.tzero
+            self.srcExp     = data.data['src'][2]
+            self.t          = (t[:,1] - t[:,0] )/ 2. + t[:,0]
+            self.src        = data.data['src'][1]
+            self.srcErr     = data.data['src'][3]
+            self.bkg        = data.background['all']
+            self.bkgErr     = data.background['allerr']      
+            self.bkgAll     = data.background      
+            self.bkgExp     = data.bkgExp['all']
+            self.bkgExpPre  = data.bkgExp['pre']
+            self.bkgExpPos  = data.bkgExp['pos']
         else:
             # rebin data to desired resolution            
             t = data.data['src'][0] - self.orbsub.opts.tzero
@@ -791,6 +780,7 @@ class OrbsubGUI(wx.Frame):
         self.plotAllBackgrounds = not self.plotAllBackgrounds
         self.doLegends()
         self.plot()
+
     def doPlotColors(self):
         ''' 
         set plot fore and background colours
@@ -806,6 +796,7 @@ class OrbsubGUI(wx.Frame):
                             labelsize = self.pltCfg['fontsizeLabel'],
                             color = self.pltCfg['foreground'])
         self.Draw()
+
     def doLegends(self, ):
         for ax in self.axes:
             ax.legend_ = None
@@ -824,24 +815,23 @@ class OrbsubGUI(wx.Frame):
                 leg = ax.legend([l1,l2], ["Source","Background"], loc = 'upper right',
                             prop = {'family': self.pltCfg['font'] , 'size': self.pltCfg['fontsizeLegend'] })
             leg.get_frame().set_alpha(0.5)
+    
     def plot(self, ):
         ''' 
         Plot selected data. This method should be called after any selection is made.
         '''
         # Remove any current lines on plot
-        self.clearLines('lines')
-        self.clearLines('patches')
-        self.clearLines('vLines')
-        self.clearLines('gti')
-        self.clearLines('occ')
+        for i in self.pltLines:
+            self.clearLines(i)
+            
         # Get selection masks from lookup
         # Lightcurve selections are applied to counts spectra
         # and spectrum selections are applied to light curve
-        lcLu = self._LU[self.curDet]['lc']
-        specLu = self._LU[self.curDet]['spec']
+        lcLu        = self._LU[self.curDet]['lc']
+        specLu      = self._LU[self.curDet]['spec']
         # Default - no selections made - select all
-        self.lcMask = self.t != -99999999
-        self.specMask = self.e != -99999999
+        self.lcMask     = self.t != -99999999
+        self.specMask   = self.e != -99999999
         if len(lcLu):
             # we have selections - first invert the mask array
             # We can then loop over each selection and create
@@ -853,6 +843,7 @@ class OrbsubGUI(wx.Frame):
                 sel = lcLu[i:i+2]
                 tempMask = (self.t > sel[0]) & (self.t < sel[1])
                 self.lcMask = self.lcMask | tempMask
+
         if len(specLu):
             # Same as for above
             self.specMask = ~self.specMask                
@@ -887,9 +878,8 @@ class OrbsubGUI(wx.Frame):
         self.pltLines['lines'][1].extend(self.axes[1].step(x,y2,
                                          color = self.pltCfg['bkgLine'], where = 'mid'))
         # Autoscale limits
-        self.orbsub.opts.autoscale = True
-        if self.orbsub.opts.autoscale:
-            self.doAutoscale()
+        self.doAutoscale() # necessary to see the signal
+
         # Hatch selected regions (if any)
         self.hatchSelections('lc')
         self.hatchSelections('spec')
@@ -898,18 +888,22 @@ class OrbsubGUI(wx.Frame):
         self.plotTI('gti')
         # Finally, draw the changes            
         self.Draw()
+
     def doAutoscale(self):
         ''' Autoscale graph limits '''
         yMax = max((self.src[:, self.specMask].sum(1)/self.srcExp).max(), (self.bkg[:, self.specMask].sum(1)/self.bkgExp).max())
         yMin = min((self.src[:, self.specMask].sum(1)/self.srcExp).min(), (self.bkg[:, self.specMask].sum(1)/self.bkgExp).min())        
         
         self.axes[1].relim()
-        self.axes[1].autoscale_view(scaley=True)
-        self.axes[1].autoscale(enable = True)
+        self.axes[1].autoscale_view()
+        # set the x_limits based on energy range
+        self.axes[1].set_xlim(self.eEdgeMin[self.specMask][0], self.eEdgeMax[self.specMask][-1])
+        #set the y_limits based on spectral counts in data
 
         xlim = self.orbsub.opts.tRange
         self.axes[0].set_xlim(xlim[0] -150, xlim[1] + 150)            
         self.axes[0].set_ylim(yMin *0.9, yMax*1.1)
+
     def clearLines(self, index):
         '''
         Remove lines from axes. Index is what is used to index the pltLines dictionary.
@@ -947,18 +941,30 @@ class OrbsubGUI(wx.Frame):
         #  should open
         id = event.GetId()
         pos = wx.GetMousePosition()
-        for i, j in enumerate(self.btns):
-            if j.GetId() == id:
-                self.menus[i].Popup( pos, self)
-                return 
+        #for i, j in enumerate(self.btns):
+        #    if j.GetId() == id:
+        #        self.menus[i].Popup( pos, self)
+        #        return 
+        #for btn in self.btns.values():
+        #    if btn.GetId() == id:
+        #        self.menus[btn.label].Popup( pos, self)
+        #        return
+    
+        for label, btn in self.btns.items():
+            if btn.GetId() == id:
+                # print "Opening menu for %s"%label
+                self.menus[label].Popup( pos, self)
+                return
+
     def OnSelect(self, event):
         ''' User wants to select data '''
         id = event.GetId()
-        if id == self.selM_selId:
+        if id == self.selM_sel.GetId():
             self.selectId = self.canvas.mpl_connect('button_press_event', 
                                                     self.flagClick)
             self.ToggleButtons(False)
             self.UpdateStatusBar("Click on graph to make selections")
+
     def disconnectClick(self):
         '''Disconnect selection method from graph '''
         if self.selectId:
@@ -1061,8 +1067,7 @@ class OrbsubGUI(wx.Frame):
             y1, y2 = axis.axis()[2], axis.axis()[3]
             patch = axis.fill([e1,e1,e2,e2], [y1,y2,y2,y1], color = self.pltCfg['srcFill'], alpha = 0.5)
             self.pltLines['patches'][axisId].append(patch)    
-        # self.axes[0].autoscale(enable = True)
-        # self.axes[1].autoscale(enable = True)            
+        
     def drawVLine(self, x, axisLbl):
         ''' 
         Draw a vertical line on the specified axis. Also add line to 
@@ -1129,9 +1134,18 @@ class OrbsubGUI(wx.Frame):
             self.axes[0].set_yscale('linear')
         self.IterDet() #Replots
         return
+    
+    def _compute_plot_data(self): #!HERE
+        """Cache expensive computations"""
+        if not hasattr(self, '_cached_data') or self._data_dirty:
+            self._cached_src_sum = self.src[:, self.specMask].sum(1) / self.srcExp
+            self._cached_bkg_sum = self.bkg[:, self.specMask].sum(1) / self.bkgExp
+            self._data_dirty = False
+
     def OnAbout(self, event):
         """Show the about dialog"""
-        info = wx.AboutDialogInfo()
+        
+        info = AboutDialogInfo()
 
         licence = """Orbsub is free software; you can redistribute 
         it and/or modify it under the terms of the GNU General Public License as 
@@ -1159,7 +1173,7 @@ class OrbsubGUI(wx.Frame):
         # info.AddDocWriter('Gerard Fitzpatrick')
 
         # Create and show the dialog
-        wx.AboutBox(info)  
+        AboutBox(info)  
     def OnConfig(self, event):
         '''
         Create GUI instance for viewing of config file. We check if the GUI 
@@ -1187,6 +1201,66 @@ class OrbsubGUI(wx.Frame):
         names = self.getOutputName( 'ascii')
         if not len(names): return
         self.orbsub.data[self.curDet].write_ascii(self.orbsub.opts, names = names, lcMask = self.lcMask, specMask = self.specMask)
+    
+    def OnExportOccultation(self, event):
+        '''
+        Export occultation time intervals to a text file
+        '''
+        if not self.orbsub:
+            self.ErrorMes("No data loaded", title="Error")
+            return
+            
+        if not self.orbsub.pos or not self.orbsub.pos.occTI:
+            self.ErrorMes("No occultation data available. Make sure source coordinates are provided.", title="Error")
+            return
+        
+        # Get default filename
+        defaultName = f"glg_osv_occultation_{self.orbsub.opts.name}.txt"
+        
+        # Show file dialog
+        dlg = wx.FileDialog(self, "Export Occultation Times", os.getcwd(), defaultName,
+                           "Text files (*.txt)|*.txt|All files (*.*)|*.*", 
+                           wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
+        
+        if dlg.ShowModal() == wx.ID_OK:
+            filepath = dlg.GetPath()
+            try:
+                self._writeOccultationFile(filepath)
+                wx.MessageBox(f"Occultation times exported successfully to:\n{filepath}", 
+                             "Export Complete", wx.OK | wx.ICON_INFORMATION)
+            except Exception as e:
+                self.ErrorMes(f"Error writing occultation file:\n{str(e)}", title="Export Error")
+        
+        dlg.Destroy()
+    
+    def _writeOccultationFile(self, filepath):
+        '''
+        Write occultation time intervals to a text file
+        '''
+        occTI = self.orbsub.pos.occTI
+        occStart = np.asarray(occTI[0])  # Start times
+        occEnd = np.asarray(occTI[1])    # End times
+        
+        with open(filepath, 'w') as f:
+            # Write header
+            f.write("# Occultation Time Intervals\n")
+            f.write(f"# Source: {self.orbsub.opts.name}\n")
+            f.write(f"# Coordinates: RA={self.orbsub.opts.coords[0]:.6f}, DEC={self.orbsub.opts.coords[1]:.6f}\n")
+            f.write(f"# Time zero (MET): {self.orbsub.opts.tzero:.6f}\n")
+            f.write("# Columns: Start_Time(MET) End_Time(MET) Duration(s) Start_Time(rel_to_tzero) End_Time(rel_to_tzero)\n")
+            f.write("#\n")
+            
+            # Write data
+            for start_met, end_met in zip(occStart, occEnd):
+                duration = end_met - start_met
+                start_rel = start_met - self.orbsub.opts.tzero
+                end_rel = end_met - self.orbsub.opts.tzero
+                
+                f.write(f"{start_met:.6f} {end_met:.6f} {duration:.6f} {start_rel:.6f} {end_rel:.6f}\n")
+            
+            f.write(f"\n# Total occultation intervals: {len(occStart)}\n")
+            f.write(f"# Total occultation time: {np.sum(occEnd - occStart):.6f} seconds\n")
+    
     def getOutputName(self, otype):
         ''' getoutput name for files
         '''
@@ -1207,67 +1281,63 @@ class OrbsubGUI(wx.Frame):
 
 
         return names
+    
     def dismiss(self, event):
         ''' dismiss instance '''
         self.Close()
+    
     def restore(self):
         ''' Restore '''
         self.Show()
+    
     def OnClose(self, event):
-        '''
-        Check to ensure that if the gui is closed that notification will travel
-        to the parent gui so that it can remove reference from lstCtrl box.
-        We need to have this as the user can close the gui without using the 
-        OSV top interface
-        '''        
+        '''Handle close event'''    
         val = self.YesNoMes("Are you sure you want to quit?", "Exit?")
         if val:
             event.Skip()
+
     def ErrorMes(self, mes, title = 'Error', style =wx.OK|wx.ICON_ERROR ):
         wx.MessageBox(mes, title, style=style)
-    def YesNoMes(self, mes, title = '', style = wx.YES_NO|wx.YES_DEFAULT):
-        ''' Yes/No message - returns true/false '''
-        val = False
-        dlg = wx.MessageDialog(self, mes, title,
-                                style = style) 
-        if dlg.ShowModal() == wx.ID_YES:
-            val = True
-        dlg.Destroy()
-        return val
+    
+    def YesNoMes(self, mes, title='', style=wx.YES_NO | wx.YES_DEFAULT):
+            '''Show yes/no message'''
+            dlg = wx.MessageDialog(self, mes, title, style=style)
+            result = dlg.ShowModal() == wx.ID_YES
+            dlg.Destroy()
+            return result
+
     def OnChangeDet(self, event,):
-        if not self.curDet:
+        if not self.curDet or len(self.dets) == 1:
             return
+        
         detIndex = self.dets.index(self.curDet)
         nDets = len(self.dets)
-        newDet = False
-        if len(self.dets) == 1:
-            return
-        if event.GetId() == self.detM_selId:
+        newDet = None
+        
+        event_id = event.GetId()
+        
+        if event_id == self.detM_sel.GetId():
             dlg = DetSelection(self, self.dets)
             if dlg.ShowModal() == wx.ID_OK:
                 newDet = dlg.detSelected
             dlg.Destroy()
-        elif event.GetId() == self.detM_forId:
-            if detIndex == nDets - 1:
-                newDet = self.dets[0]
-            else:
-                newDet = self.dets[detIndex + 1]
-        elif event.GetId() == self.detM_bakId:
-            if detIndex == 0:
-                newDet = self.dets[-1]
-            else:
-                newDet = self.dets[detIndex -1]
-        else:
-            return
+        elif event_id == self.detM_for.GetId():
+            newDet = self.dets[0] if detIndex == nDets - 1 else self.dets[detIndex + 1]
+        elif event_id == self.detM_bak.GetId():
+            newDet = self.dets[-1] if detIndex == 0 else self.dets[detIndex - 1]
+        
         if newDet:
-            self.IterDet(newDet)          
+            self.IterDet(newDet)
+
     def Draw(self):
         ''' Update Canvas '''
-        self.canvas.draw()        
+        self.canvas.draw()    
+
     def OnPaint(self, event):
         '''Update Canvas'''
         self.canvas.draw()
         event.Skip()
+
     def UpdateStatusBar(self, mes):
         self.statusBar.SetStatusText((mes), 0)
 
@@ -1275,41 +1345,26 @@ class DetSelection(wx.Dialog):
     '''
     GBM Detector Selection Dialog - for a subset of detectors
     '''
-    def __init__(self, parent, dets, *args, **kwargs):
-        wx.Dialog.__init__(self, parent, *args, **kwargs)
-        # Attributes
+
+    def __init__(self, parent, detectors, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
         self.detSelected = None
+        self._setup_ui(detectors)
+        self.Centre()
+    
+    def _setup_ui(self, detectors) -> None:
+        """Setup dialog UI"""
         sizer = wx.BoxSizer(wx.VERTICAL)
-        btns = []
-        self.ids = {}
-        for j,i in enumerate(dets):
-            btn = wx.ToggleButton(self, -1, i, (20,25 + 25*j ), (-1,25))
-            btns.append(btn)
-            self.Bind(wx.EVT_TOGGLEBUTTON, self.selected,)# id = id)
-            sizer.Add(btn, 0, wx.EXPAND|wx.ALL, 0)
+        
+        for detector in detectors:
+            btn = wx.ToggleButton(self, -1, detector)
+            btn.Bind(wx.EVT_TOGGLEBUTTON, self._on_selected)
+            sizer.Add(btn, 0, wx.EXPAND | wx.ALL, 2)
+        
         self.SetSizer(sizer)
         self.SetInitialSize()
-        self.Centre()
-    def selected(self,event):
+    
+    def _on_selected(self, event) -> None:
+        """Handle detector selection"""
         self.detSelected = event.GetEventObject().GetLabel()
         self.EndModal(wx.ID_OK)
-        
-class CustomToolbar(NavigationToolbar2WxAgg):
-    '''
-    Extend the default wx toolbar
-    '''
-    ON_CUSTOM = wx.NewId()
-    def __init__(self, canvas, cankill):
-        NavigationToolbar2WxAgg.__init__(self, canvas)
-        self.DeleteToolByPos(6)  # remove subplot config button
-        self.DeleteToolByPos(2)  # remove move buttons
-        self.DeleteToolByPos(1)  # remove move buttons
-        self.AddSeparator()
-    def ToggleActive(self, state):
-        '''
-        Toggle toolbar buttons on/off depending on the logical value of state
-        '''
-        if state:
-            self.Enable()
-        else:
-            self.Disable()
